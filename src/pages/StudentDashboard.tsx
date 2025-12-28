@@ -13,9 +13,10 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 import {
-  GraduationCap, Plus, Flame, LogOut, Rocket, Users, Eye, MessageSquare,
+  GraduationCap, Plus, LogOut, Rocket, Users, Eye, MessageSquare,
   ExternalLink, Github, Edit, Trash2, Loader2, FolderOpen, Bell, Settings
 } from 'lucide-react';
+import logo from '@/assets/logo.png';
 
 interface Project {
   id: string;
@@ -243,10 +244,12 @@ const StudentDashboard = () => {
         <div className="container mx-auto px-4 py-4 flex items-center justify-between">
           <div className="flex items-center gap-3">
             <Link to="/" className="flex items-center gap-2">
-              <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-primary-gradient">
-                <Flame className="h-4 w-4 text-primary-foreground" />
-              </div>
-              <span className="font-display text-xl font-bold hidden sm:block">IdeaForge</span>
+              <img 
+                src={logo} 
+                alt="Vichaar Setu" 
+                className="h-9 w-9 object-contain rounded-lg"
+              />
+              <span className="font-display text-xl font-bold hidden sm:block">Vichaar Setu</span>
             </Link>
             <Badge className="badge-student">
               <GraduationCap className="h-3 w-3" />
