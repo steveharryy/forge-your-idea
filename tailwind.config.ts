@@ -7,15 +7,16 @@ export default {
   theme: {
     container: {
       center: true,
-      padding: "2rem",
+      padding: "1.5rem",
       screens: {
-        "2xl": "1400px",
+        "2xl": "1280px",
       },
     },
     extend: {
       fontFamily: {
-        sans: ["DM Sans", "system-ui", "sans-serif"],
-        display: ["Outfit", "system-ui", "sans-serif"],
+        sans: ["Inter", "system-ui", "sans-serif"],
+        display: ["Sora", "system-ui", "sans-serif"],
+        mono: ["Space Mono", "monospace"],
       },
       colors: {
         border: "hsl(var(--border))",
@@ -76,6 +77,7 @@ export default {
         sm: "calc(var(--radius) - 4px)",
         xl: "calc(var(--radius) + 4px)",
         "2xl": "calc(var(--radius) + 8px)",
+        "3xl": "1.5rem",
       },
       keyframes: {
         "accordion-down": {
@@ -89,39 +91,30 @@ export default {
         shimmer: {
           "100%": { transform: "translateX(100%)" },
         },
-        float: {
-          "0%, 100%": { transform: "translate(0, 0) rotate(0deg)" },
-          "25%": { transform: "translate(30px, -30px) rotate(5deg)" },
-          "50%": { transform: "translate(-20px, 20px) rotate(-5deg)" },
-          "75%": { transform: "translate(20px, 10px) rotate(3deg)" },
-        },
-        "pulse-soft": {
-          "0%, 100%": { opacity: "0.2", transform: "scale(1)" },
-          "50%": { opacity: "0.3", transform: "scale(1.05)" },
-        },
       },
       animation: {
         "accordion-down": "accordion-down 0.2s ease-out",
         "accordion-up": "accordion-up 0.2s ease-out",
         shimmer: "shimmer 1.5s infinite",
-        float: "float 20s ease-in-out infinite",
-        "pulse-soft": "pulse-soft 4s ease-in-out infinite",
       },
       backgroundImage: {
         "gradient-radial": "radial-gradient(var(--tw-gradient-stops))",
         "hero-gradient": "var(--gradient-hero)",
-        "card-gradient": "var(--gradient-card)",
+        "mesh-gradient": "var(--gradient-mesh)",
         "primary-gradient": "var(--gradient-primary)",
         "accent-gradient": "var(--gradient-accent)",
         "investor-gradient": "var(--gradient-investor)",
         "student-gradient": "var(--gradient-student)",
-        "glow-gradient": "var(--gradient-glow)",
       },
       boxShadow: {
         soft: "var(--shadow-soft)",
         glow: "var(--shadow-glow)",
         card: "var(--shadow-card)",
         "glow-accent": "var(--shadow-glow-accent)",
+      },
+      spacing: {
+        '18': '4.5rem',
+        '22': '5.5rem',
       },
     },
   },

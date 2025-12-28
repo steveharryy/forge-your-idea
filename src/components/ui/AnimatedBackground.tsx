@@ -1,17 +1,19 @@
 const AnimatedBackground = () => {
   return (
     <div className="animated-bg">
-      {/* Grid pattern */}
-      <div className="grid-pattern" />
+      {/* Base mesh gradient */}
+      <div className="mesh-gradient" />
       
-      {/* Floating orbs */}
-      <div className="floating-orb floating-orb-1 animate-pulse-soft" />
-      <div className="floating-orb floating-orb-2 animate-pulse-soft" style={{ animationDelay: '-2s' }} />
-      <div className="floating-orb floating-orb-3 animate-pulse-soft" style={{ animationDelay: '-4s' }} />
-      <div className="floating-orb floating-orb-4 animate-pulse-soft" style={{ animationDelay: '-6s' }} />
+      {/* Floating color orbs - slow, organic movement */}
+      <div className="floating-orb floating-orb-1" />
+      <div className="floating-orb floating-orb-2" />
+      <div className="floating-orb floating-orb-3" />
       
-      {/* Subtle noise overlay for texture */}
-      <div className="noise-overlay opacity-[0.02]" />
+      {/* Subtle grid for structure */}
+      <div className="grid-lines" />
+      
+      {/* Film grain for texture */}
+      <div className="grain-overlay" />
     </div>
   );
 };

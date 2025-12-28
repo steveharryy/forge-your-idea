@@ -1,12 +1,11 @@
 import { useState, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, Link } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
 import AnimatedBackground from '@/components/ui/AnimatedBackground';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Card } from '@/components/ui/card';
-import { Flame, GraduationCap, TrendingUp, Mail, Lock, User, ArrowRight, Loader2 } from 'lucide-react';
+import { GraduationCap, TrendingUp, ArrowRight, Loader2, ArrowUpRight } from 'lucide-react';
 import { toast } from 'sonner';
 import { z } from 'zod';
 
@@ -106,79 +105,80 @@ const Auth = () => {
   if (authLoading) {
     return (
       <div className="min-h-screen flex items-center justify-center">
-        <Loader2 className="h-8 w-8 animate-spin text-primary" />
+        <Loader2 className="h-6 w-6 animate-spin text-primary" />
       </div>
     );
   }
 
   return (
-    <div className="min-h-screen flex items-center justify-center p-4 relative overflow-hidden">
+    <div className="min-h-screen flex relative overflow-hidden">
       <AnimatedBackground />
       
-      <div className="w-full max-w-md relative z-10">
-        {/* Logo */}
-        <div className="flex items-center justify-center gap-2 mb-8">
-          <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-primary-gradient">
-            <Flame className="h-5 w-5 text-primary-foreground" />
-          </div>
-          <span className="font-display text-2xl font-bold">IdeaForge</span>
-        </div>
+      {/* Left side - Form */}
+      <div className="flex-1 flex items-center justify-center p-6 lg:p-12">
+        <div className="w-full max-w-md">
+          {/* Logo */}
+          <Link to="/" className="inline-flex items-center gap-2 mb-12">
+            <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-primary text-primary-foreground font-mono font-bold text-sm">
+              IF
+            </div>
+            <span className="font-display text-lg font-semibold">IdeaForge</span>
+          </Link>
 
-        <Card className="glass-card-strong p-8 space-y-6">
-          <div className="text-center">
-            <h1 className="font-display text-2xl font-bold mb-2">
-              {isSignUp ? 'Create your account' : 'Welcome back'}
+          <div className="mb-8">
+            <h1 className="font-display text-3xl font-bold mb-2">
+              {isSignUp ? 'Create account' : 'Welcome back'}
             </h1>
-            <p className="text-muted-foreground text-sm">
+            <p className="text-muted-foreground">
               {isSignUp 
-                ? 'Join the community of innovators and investors' 
+                ? 'Join the community of builders and investors' 
                 : 'Sign in to continue to your dashboard'}
             </p>
           </div>
 
           {/* Role Selection (Sign Up only) */}
           {isSignUp && (
-            <div className="space-y-3">
-              <Label className="text-sm font-medium">I am a...</Label>
+            <div className="mb-6">
+              <span className="label-mono mb-3 block">I am a</span>
               <div className="grid grid-cols-2 gap-3">
                 <button
                   type="button"
                   onClick={() => setSelectedRole('student')}
-                  className={`p-4 rounded-xl border-2 transition-all duration-300 text-left ${
+                  className={`p-4 rounded-xl border-2 transition-all duration-300 text-left group ${
                     selectedRole === 'student'
-                      ? 'border-primary bg-primary/10 shadow-glow'
-                      : 'border-border hover:border-primary/50 hover:bg-secondary/50'
+                      ? 'border-accent bg-accent/5'
+                      : 'border-border/60 hover:border-border hover:bg-secondary/30'
                   }`}
                 >
-                  <div className="flex items-center gap-3 mb-2">
-                    <div className={`p-2 rounded-lg ${selectedRole === 'student' ? 'bg-primary-gradient' : 'bg-secondary'}`}>
-                      <GraduationCap className={`h-4 w-4 ${selectedRole === 'student' ? 'text-primary-foreground' : 'text-muted-foreground'}`} />
-                    </div>
-                    <span className="font-semibold">Student</span>
+                  <div className={`inline-flex p-2 rounded-lg mb-2 transition-colors ${
+                    selectedRole === 'student' ? 'bg-accent/20' : 'bg-secondary'
+                  }`}>
+                    <GraduationCap className={`h-4 w-4 ${
+                      selectedRole === 'student' ? 'text-accent' : 'text-muted-foreground'
+                    }`} />
                   </div>
-                  <p className="text-xs text-muted-foreground">
-                    Pitch your ideas and find investors
-                  </p>
+                  <p className="font-medium text-sm">Student</p>
+                  <p className="text-xs text-muted-foreground mt-0.5">Pitch your ideas</p>
                 </button>
 
                 <button
                   type="button"
                   onClick={() => setSelectedRole('investor')}
-                  className={`p-4 rounded-xl border-2 transition-all duration-300 text-left ${
+                  className={`p-4 rounded-xl border-2 transition-all duration-300 text-left group ${
                     selectedRole === 'investor'
-                      ? 'border-warning bg-warning/10'
-                      : 'border-border hover:border-warning/50 hover:bg-secondary/50'
+                      ? 'border-primary bg-primary/5'
+                      : 'border-border/60 hover:border-border hover:bg-secondary/30'
                   }`}
                 >
-                  <div className="flex items-center gap-3 mb-2">
-                    <div className={`p-2 rounded-lg ${selectedRole === 'investor' ? 'bg-investor-gradient' : 'bg-secondary'}`}>
-                      <TrendingUp className={`h-4 w-4 ${selectedRole === 'investor' ? 'text-warning-foreground' : 'text-muted-foreground'}`} />
-                    </div>
-                    <span className="font-semibold">Investor</span>
+                  <div className={`inline-flex p-2 rounded-lg mb-2 transition-colors ${
+                    selectedRole === 'investor' ? 'bg-primary/20' : 'bg-secondary'
+                  }`}>
+                    <TrendingUp className={`h-4 w-4 ${
+                      selectedRole === 'investor' ? 'text-primary' : 'text-muted-foreground'
+                    }`} />
                   </div>
-                  <p className="text-xs text-muted-foreground">
-                    Discover promising startups
-                  </p>
+                  <p className="font-medium text-sm">Investor</p>
+                  <p className="text-xs text-muted-foreground mt-0.5">Discover startups</p>
                 </button>
               </div>
             </div>
@@ -186,58 +186,49 @@ const Auth = () => {
 
           <form onSubmit={handleSubmit} className="space-y-4">
             {isSignUp && (
-              <div className="space-y-2">
-                <Label htmlFor="fullName">Full Name</Label>
-                <div className="relative">
-                  <User className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                  <Input
-                    id="fullName"
-                    type="text"
-                    placeholder="John Doe"
-                    value={fullName}
-                    onChange={(e) => setFullName(e.target.value)}
-                    className={`pl-10 bg-secondary/50 border-border ${errors.fullName ? 'border-destructive' : ''}`}
-                  />
-                </div>
+              <div className="space-y-1.5">
+                <Label htmlFor="fullName" className="text-sm">Full Name</Label>
+                <Input
+                  id="fullName"
+                  type="text"
+                  placeholder="Jane Doe"
+                  value={fullName}
+                  onChange={(e) => setFullName(e.target.value)}
+                  className={`h-11 bg-secondary/30 border-border/60 ${errors.fullName ? 'border-destructive' : ''}`}
+                />
                 {errors.fullName && <p className="text-xs text-destructive">{errors.fullName}</p>}
               </div>
             )}
 
-            <div className="space-y-2">
-              <Label htmlFor="email">Email</Label>
-              <div className="relative">
-                <Mail className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                <Input
-                  id="email"
-                  type="email"
-                  placeholder="you@example.com"
-                  value={email}
-                  onChange={(e) => setEmail(e.target.value)}
-                  className={`pl-10 bg-secondary/50 border-border ${errors.email ? 'border-destructive' : ''}`}
-                />
-              </div>
+            <div className="space-y-1.5">
+              <Label htmlFor="email" className="text-sm">Email</Label>
+              <Input
+                id="email"
+                type="email"
+                placeholder="you@university.edu"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                className={`h-11 bg-secondary/30 border-border/60 ${errors.email ? 'border-destructive' : ''}`}
+              />
               {errors.email && <p className="text-xs text-destructive">{errors.email}</p>}
             </div>
 
-            <div className="space-y-2">
-              <Label htmlFor="password">Password</Label>
-              <div className="relative">
-                <Lock className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                <Input
-                  id="password"
-                  type="password"
-                  placeholder="••••••••"
-                  value={password}
-                  onChange={(e) => setPassword(e.target.value)}
-                  className={`pl-10 bg-secondary/50 border-border ${errors.password ? 'border-destructive' : ''}`}
-                />
-              </div>
+            <div className="space-y-1.5">
+              <Label htmlFor="password" className="text-sm">Password</Label>
+              <Input
+                id="password"
+                type="password"
+                placeholder="••••••••"
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                className={`h-11 bg-secondary/30 border-border/60 ${errors.password ? 'border-destructive' : ''}`}
+              />
               {errors.password && <p className="text-xs text-destructive">{errors.password}</p>}
             </div>
 
             <Button
               type="submit"
-              className="w-full bg-primary-gradient hover:opacity-90 transition-opacity group"
+              className="w-full h-11 bg-primary text-primary-foreground hover:bg-primary/90 rounded-full group"
               disabled={loading}
             >
               {loading ? (
@@ -245,28 +236,55 @@ const Auth = () => {
               ) : (
                 <>
                   {isSignUp ? 'Create Account' : 'Sign In'}
-                  <ArrowRight className="ml-2 h-4 w-4 transition-transform group-hover:translate-x-1" />
+                  <ArrowRight className="ml-2 h-4 w-4 transition-transform group-hover:translate-x-0.5" />
                 </>
               )}
             </Button>
           </form>
 
-          <div className="text-center">
+          <p className="text-center text-sm text-muted-foreground mt-6">
+            {isSignUp ? 'Already have an account? ' : "Don't have an account? "}
             <button
               type="button"
               onClick={() => {
                 setIsSignUp(!isSignUp);
                 setErrors({});
               }}
-              className="text-sm text-muted-foreground hover:text-foreground transition-colors"
+              className="text-foreground font-medium hover:text-primary transition-colors"
             >
-              {isSignUp ? 'Already have an account? ' : "Don't have an account? "}
-              <span className="text-primary font-medium">
-                {isSignUp ? 'Sign in' : 'Sign up'}
-              </span>
+              {isSignUp ? 'Sign in' : 'Sign up'}
             </button>
+          </p>
+        </div>
+      </div>
+
+      {/* Right side - Visual */}
+      <div className="hidden lg:flex flex-1 items-center justify-center bg-secondary/20 border-l border-border/40 p-12">
+        <div className="max-w-md text-center">
+          <div className="mb-8">
+            <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-primary/10 border border-primary/20 mb-6">
+              <span className="text-xs font-medium text-primary">✦ Join 1,200+ founders</span>
+            </div>
+            <h2 className="font-display text-4xl font-bold mb-4">
+              Build the future,<br />together
+            </h2>
+            <p className="text-muted-foreground">
+              Whether you're launching your first startup or looking to invest in the next unicorn.
+            </p>
           </div>
-        </Card>
+
+          <div className="grid grid-cols-2 gap-4 text-left">
+            {[
+              { number: "89%", label: "Projects funded" },
+              { number: "$2.1M", label: "Total raised" },
+            ].map((stat) => (
+              <div key={stat.label} className="glass-card p-4">
+                <div className="text-2xl font-display font-bold gradient-text">{stat.number}</div>
+                <div className="label-mono mt-1">{stat.label}</div>
+              </div>
+            ))}
+          </div>
+        </div>
       </div>
     </div>
   );
