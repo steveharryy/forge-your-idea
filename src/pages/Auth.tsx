@@ -5,9 +5,10 @@ import AnimatedBackground from '@/components/ui/AnimatedBackground';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { GraduationCap, TrendingUp, ArrowRight, Loader2, ArrowUpRight } from 'lucide-react';
+import { GraduationCap, TrendingUp, ArrowRight, Loader2 } from 'lucide-react';
 import { toast } from 'sonner';
 import { z } from 'zod';
+import logo from '@/assets/logo.png';
 
 const authSchema = z.object({
   email: z.string().email('Please enter a valid email').max(255),
@@ -119,10 +120,12 @@ const Auth = () => {
         <div className="w-full max-w-md">
           {/* Logo */}
           <Link to="/" className="inline-flex items-center gap-2 mb-12">
-            <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-primary text-primary-foreground font-mono font-bold text-sm">
-              IF
-            </div>
-            <span className="font-display text-lg font-semibold">IdeaForge</span>
+            <img 
+              src={logo} 
+              alt="Vichaar Setu" 
+              className="h-10 w-10 object-contain rounded-lg"
+            />
+            <span className="font-display text-lg font-semibold">Vichaar Setu</span>
           </Link>
 
           <div className="mb-8">

@@ -12,13 +12,13 @@ const Footer = () => {
             <Link to="/" className="flex items-center gap-2 mb-4">
               <img 
                 src={logo} 
-                alt="Idea Forge" 
-                className="h-10 w-10 object-contain"
+                alt="Vichaar Setu" 
+                className="h-10 w-10 object-contain rounded-lg"
               />
-              <span className="font-display text-lg font-bold">Idea Forge</span>
+              <span className="font-display text-lg font-bold">Vichaar Setu</span>
             </Link>
             <p className="text-sm text-muted-foreground">
-              Where founders pitch, discover, and launch the next big thing.
+              Where students pitch, investors discover, and ideas become ventures.
             </p>
           </div>
 
@@ -61,7 +61,7 @@ const Footer = () => {
         </div>
 
         <div className="mt-12 pt-6 border-t border-border/50 text-center text-sm text-muted-foreground">
-          <p>&copy; {new Date().getFullYear()} IdeaForge. All rights reserved.</p>
+          <p>&copy; {new Date().getFullYear()} Vichaar Setu. All rights reserved.</p>
         </div>
       </div>
     </footer>
