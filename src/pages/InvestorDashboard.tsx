@@ -12,10 +12,11 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 import {
-  TrendingUp, Flame, LogOut, Search, Rocket, Eye, MessageSquare,
-  ExternalLink, Github, Loader2, Filter, Star, Send, ChevronRight,
-  Users, Briefcase, Globe, Sparkles, ArrowUpRight
+  TrendingUp, LogOut, Search, Rocket, MessageSquare,
+  Github, Loader2, Filter, Star, Send,
+  Briefcase, Globe, Sparkles
 } from 'lucide-react';
+import logo from '@/assets/logo.png';
 
 interface Project {
   id: string;
@@ -177,10 +178,12 @@ const InvestorDashboard = () => {
         <div className="container mx-auto px-4 py-4 flex items-center justify-between">
           <div className="flex items-center gap-3">
             <Link to="/" className="flex items-center gap-2">
-              <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-investor-gradient">
-                <Flame className="h-4 w-4 text-warning-foreground" />
-              </div>
-              <span className="font-display text-xl font-bold hidden sm:block">IdeaForge</span>
+              <img 
+                src={logo} 
+                alt="Vichaar Setu" 
+                className="h-9 w-9 object-contain rounded-lg"
+              />
+              <span className="font-display text-xl font-bold hidden sm:block">Vichaar Setu</span>
             </Link>
             <Badge className="badge-investor">
               <TrendingUp className="h-3 w-3" />
