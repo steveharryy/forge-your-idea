@@ -1,5 +1,6 @@
 import { Link } from "react-router-dom";
-import { Flame, Github, Twitter } from "lucide-react";
+import { Github, Twitter } from "lucide-react";
+import logo from "@/assets/logo.png";
 
 const Footer = () => {
   return (
@@ -9,13 +10,12 @@ const Footer = () => {
           {/* Brand */}
           <div className="md:col-span-1">
             <Link to="/" className="flex items-center gap-2 mb-4">
-              
-              <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-primary-gradient">
-                <Flame className="h-4 w-4 text-primary-foreground" />
-
-                
-              </div>
-              <span className="font-display text-lg font-bold">IdeaForge</span>
+              <img 
+                src={logo} 
+                alt="Idea Forge" 
+                className="h-10 w-10 object-contain"
+              />
+              <span className="font-display text-lg font-bold">Idea Forge</span>
             </Link>
             <p className="text-sm text-muted-foreground">
               Where founders pitch, discover, and launch the next big thing.

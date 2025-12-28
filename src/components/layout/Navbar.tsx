@@ -4,6 +4,7 @@ import { Menu, X, ArrowUpRight } from "lucide-react";
 import { useState } from "react";
 import { cn } from "@/lib/utils";
 import { useAuth } from "@/contexts/AuthContext";
+import logo from "@/assets/logo.png";
 
 const Navbar = () => {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
@@ -30,15 +31,14 @@ const Navbar = () => {
       
       <div className="container relative flex h-16 items-center justify-between">
         {/* Logo */}
-        <Link to="/" className="flex items-center gap-3 group">
-          <div className="relative">
-            <div className="absolute inset-0 bg-primary/20 rounded-lg blur-xl group-hover:bg-primary/30 transition-colors" />
-            <div className="relative flex h-8 w-8 items-center justify-center rounded-lg bg-primary text-primary-foreground font-mono font-bold text-sm">
-              IF
-            </div>
-          </div>
+        <Link to="/" className="flex items-center gap-2 group">
+          <img 
+            src={logo} 
+            alt="Idea Forge" 
+            className="h-10 w-10 object-contain"
+          />
           <span className="font-display text-lg font-semibold tracking-tight hidden sm:block">
-            IdeaForge
+            Idea Forge
           </span>
         </Link>
 
