@@ -1,12 +1,14 @@
 import { Link, useLocation } from "react-router-dom";
 import { Button } from "@/components/ui/button";
-import { Flame, Search, Plus, User, Menu, X } from "lucide-react";
+import { Menu, X, ArrowUpRight } from "lucide-react";
 import { useState } from "react";
 import { cn } from "@/lib/utils";
+import { useAuth } from "@/contexts/AuthContext";
 
 const Navbar = () => {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const location = useLocation();
+  const { user, userRole } = useAuth();
 
   const navLinks = [
     { href: "/explore", label: "Explore" },
@@ -16,60 +18,87 @@ const Navbar = () => {
 
   const isActive = (path: string) => location.pathname === path;
 
+  const getDashboardLink = () => {
+    if (userRole === 'student') return '/student-dashboard';
+    if (userRole === 'investor') return '/investor-dashboard';
+    return '/auth';
+  };
+
   return (
-    <header className="sticky top-0 z-50 w-full border-b border-border/50 bg-background/80 backdrop-blur-xl">
-      <div className="container flex h-16 items-center justify-between">
+    <header className="sticky top-0 z-50 w-full">
+      <div className="absolute inset-0 bg-background/60 backdrop-blur-2xl border-b border-border/40" />
+      
+      <div className="container relative flex h-16 items-center justify-between">
         {/* Logo */}
-        <Link to="/" className="flex items-center gap-2 group">
-          <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-primary-gradient shadow-glow">
-            <Flame className="h-5 w-5 text-primary-foreground" />
+        <Link to="/" className="flex items-center gap-3 group">
+          <div className="relative">
+            <div className="absolute inset-0 bg-primary/20 rounded-lg blur-xl group-hover:bg-primary/30 transition-colors" />
+            <div className="relative flex h-8 w-8 items-center justify-center rounded-lg bg-primary text-primary-foreground font-mono font-bold text-sm">
+              IF
+            </div>
           </div>
-          <span className="font-display text-xl font-bold tracking-tight">
+          <span className="font-display text-lg font-semibold tracking-tight hidden sm:block">
             IdeaForge
           </span>
         </Link>
 
         {/* Desktop Navigation */}
-        <nav className="hidden md:flex items-center gap-1">
-          {navLinks.map((link) => (
-            <Link
-              key={link.href}
-              to={link.href}
-              className={cn(
-                "px-4 py-2 rounded-lg text-sm font-medium transition-colors",
-                isActive(link.href)
-                  ? "bg-secondary text-foreground"
-                  : "text-muted-foreground hover:text-foreground hover:bg-secondary/50"
-              )}
-            >
-              {link.label}
-            </Link>
-          ))}
+        <nav className="hidden md:flex items-center">
+          <div className="flex items-center bg-secondary/50 rounded-full p-1">
+            {navLinks.map((link) => (
+              <Link
+                key={link.href}
+                to={link.href}
+                className={cn(
+                  "px-4 py-1.5 rounded-full text-sm font-medium transition-all duration-300",
+                  isActive(link.href)
+                    ? "bg-foreground text-background"
+                    : "text-muted-foreground hover:text-foreground"
+                )}
+              >
+                {link.label}
+              </Link>
+            ))}
+          </div>
         </nav>
 
         {/* Desktop Actions */}
-        <div className="hidden md:flex items-center gap-3">
-          <Button variant="ghost" size="icon" asChild>
-            <Link to="/search">
-              <Search className="h-5 w-5" />
-            </Link>
-          </Button>
-          <Button variant="outline" asChild>
-            <Link to="/submit" className="gap-2">
-              <Plus className="h-4 w-4" />
-              Submit
-            </Link>
-          </Button>
-          <Button variant="ghost" size="icon" asChild>
-            <Link to="/profile">
-              <User className="h-5 w-5" />
-            </Link>
-          </Button>
+        <div className="hidden md:flex items-center gap-2">
+          {user ? (
+            <Button 
+              variant="default" 
+              size="sm" 
+              asChild
+              className="bg-primary text-primary-foreground hover:bg-primary/90 rounded-full px-4 group"
+            >
+              <Link to={getDashboardLink()} className="gap-1.5">
+                Dashboard
+                <ArrowUpRight className="h-3.5 w-3.5 transition-transform group-hover:translate-x-0.5 group-hover:-translate-y-0.5" />
+              </Link>
+            </Button>
+          ) : (
+            <>
+              <Button variant="ghost" size="sm" asChild className="text-muted-foreground hover:text-foreground">
+                <Link to="/auth">Sign in</Link>
+              </Button>
+              <Button 
+                variant="default" 
+                size="sm" 
+                asChild
+                className="bg-primary text-primary-foreground hover:bg-primary/90 rounded-full px-4 group"
+              >
+                <Link to="/auth" className="gap-1.5">
+                  Get Started
+                  <ArrowUpRight className="h-3.5 w-3.5 transition-transform group-hover:translate-x-0.5 group-hover:-translate-y-0.5" />
+                </Link>
+              </Button>
+            </>
+          )}
         </div>
 
         {/* Mobile Menu Button */}
         <button
-          className="md:hidden p-2 rounded-lg hover:bg-secondary transition-colors"
+          className="md:hidden p-2 rounded-lg hover:bg-secondary/50 transition-colors"
           onClick={() => setIsMenuOpen(!isMenuOpen)}
         >
           {isMenuOpen ? <X className="h-5 w-5" /> : <Menu className="h-5 w-5" />}
@@ -78,38 +107,44 @@ const Navbar = () => {
 
       {/* Mobile Menu */}
       {isMenuOpen && (
-        <div className="md:hidden border-t border-border/50 bg-background animate-fade-in">
-          <nav className="container py-4 flex flex-col gap-2">
-            {navLinks.map((link) => (
+        <div className="md:hidden absolute top-full left-0 right-0 bg-background/95 backdrop-blur-2xl border-b border-border animate-fade-in">
+          <nav className="container py-6 flex flex-col gap-1">
+            {navLinks.map((link, i) => (
               <Link
                 key={link.href}
                 to={link.href}
                 onClick={() => setIsMenuOpen(false)}
                 className={cn(
-                  "px-4 py-3 rounded-lg text-sm font-medium transition-colors",
+                  "px-4 py-3 rounded-xl text-base font-medium transition-colors animate-fade-up",
                   isActive(link.href)
                     ? "bg-secondary text-foreground"
                     : "text-muted-foreground hover:text-foreground hover:bg-secondary/50"
                 )}
+                style={{ animationDelay: `${i * 0.05}s` }}
               >
                 {link.label}
               </Link>
             ))}
-            <hr className="my-2 border-border" />
-            <Link
-              to="/submit"
-              onClick={() => setIsMenuOpen(false)}
-              className="px-4 py-3 rounded-lg text-sm font-medium bg-primary text-primary-foreground"
-            >
-              Submit Startup
-            </Link>
-            <Link
-              to="/profile"
-              onClick={() => setIsMenuOpen(false)}
-              className="px-4 py-3 rounded-lg text-sm font-medium text-muted-foreground hover:bg-secondary/50"
-            >
-              Profile
-            </Link>
+            <hr className="my-3 border-border/50" />
+            {user ? (
+              <Link
+                to={getDashboardLink()}
+                onClick={() => setIsMenuOpen(false)}
+                className="px-4 py-3 rounded-xl text-base font-medium bg-primary text-primary-foreground animate-fade-up"
+                style={{ animationDelay: '0.2s' }}
+              >
+                Go to Dashboard
+              </Link>
+            ) : (
+              <Link
+                to="/auth"
+                onClick={() => setIsMenuOpen(false)}
+                className="px-4 py-3 rounded-xl text-base font-medium bg-primary text-primary-foreground animate-fade-up"
+                style={{ animationDelay: '0.2s' }}
+              >
+                Get Started
+              </Link>
+            )}
           </nav>
         </div>
       )}
