@@ -43,6 +43,14 @@ export default {
           DEFAULT: "hsl(var(--accent))",
           foreground: "hsl(var(--accent-foreground))",
         },
+        success: {
+          DEFAULT: "hsl(var(--success))",
+          foreground: "hsl(var(--success-foreground))",
+        },
+        warning: {
+          DEFAULT: "hsl(var(--warning))",
+          foreground: "hsl(var(--warning-foreground))",
+        },
         popover: {
           DEFAULT: "hsl(var(--popover))",
           foreground: "hsl(var(--popover-foreground))",
@@ -81,22 +89,39 @@ export default {
         shimmer: {
           "100%": { transform: "translateX(100%)" },
         },
+        float: {
+          "0%, 100%": { transform: "translate(0, 0) rotate(0deg)" },
+          "25%": { transform: "translate(30px, -30px) rotate(5deg)" },
+          "50%": { transform: "translate(-20px, 20px) rotate(-5deg)" },
+          "75%": { transform: "translate(20px, 10px) rotate(3deg)" },
+        },
+        "pulse-soft": {
+          "0%, 100%": { opacity: "0.2", transform: "scale(1)" },
+          "50%": { opacity: "0.3", transform: "scale(1.05)" },
+        },
       },
       animation: {
         "accordion-down": "accordion-down 0.2s ease-out",
         "accordion-up": "accordion-up 0.2s ease-out",
         shimmer: "shimmer 1.5s infinite",
+        float: "float 20s ease-in-out infinite",
+        "pulse-soft": "pulse-soft 4s ease-in-out infinite",
       },
       backgroundImage: {
         "gradient-radial": "radial-gradient(var(--tw-gradient-stops))",
         "hero-gradient": "var(--gradient-hero)",
         "card-gradient": "var(--gradient-card)",
         "primary-gradient": "var(--gradient-primary)",
+        "accent-gradient": "var(--gradient-accent)",
+        "investor-gradient": "var(--gradient-investor)",
+        "student-gradient": "var(--gradient-student)",
+        "glow-gradient": "var(--gradient-glow)",
       },
       boxShadow: {
         soft: "var(--shadow-soft)",
         glow: "var(--shadow-glow)",
         card: "var(--shadow-card)",
+        "glow-accent": "var(--shadow-glow-accent)",
       },
     },
   },
