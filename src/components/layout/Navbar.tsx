@@ -34,11 +34,11 @@ const Navbar = () => {
         <Link to="/" className="flex items-center gap-2 group">
           <img 
             src={logo} 
-            alt="Idea Forge" 
-            className="h-10 w-10 object-contain"
+            alt="Vichaar Setu" 
+            className="h-10 w-10 object-contain rounded-lg"
           />
           <span className="font-display text-lg font-semibold tracking-tight hidden sm:block">
-            Idea Forge
+            Vichaar Setu
           </span>
         </Link>
 
