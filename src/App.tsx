@@ -14,6 +14,8 @@ import Categories from "./pages/Categories";
 import Auth from "./pages/Auth";
 import StudentDashboard from "./pages/StudentDashboard";
 import InvestorDashboard from "./pages/InvestorDashboard";
+import About from "./pages/About";
+import Blog from "./pages/Blog";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -39,6 +41,8 @@ const App = () => (
             <Route path="/auth" element={<Auth />} />
             <Route path="/student-dashboard" element={<StudentDashboard />} />
             <Route path="/investor-dashboard" element={<InvestorDashboard />} />
+            <Route path="/about" element={<About />} />
+            <Route path="/blog" element={<Blog />} />
             <Route path="*" element={<NotFound />} />
           </Routes>
         </BrowserRouter>
