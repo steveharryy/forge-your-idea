@@ -160,15 +160,20 @@ const StartupDetail = () => {
                 </Badge>
                 <div className="flex items-center gap-2">
                   <img
-                    src={project.profile?.avatar_url || '/placeholder.svg'}
-                    alt={project.profile?.full_name || 'Founder'}
+                    src={project.founder_avatar || project.profile?.avatar_url || '/placeholder.svg'}
+                    alt={project.founder_name || project.profile?.full_name || 'Founder'}
                     className="h-6 w-6 rounded-full ring-1 ring-border"
                   />
                   <span className="text-sm text-muted-foreground">
                     by{" "}
                     <span className="text-foreground">
-                      {project.profile?.full_name || 'Anonymous'}
+                      {project.founder_name || project.profile?.full_name || 'Anonymous'}
                     </span>
+                    {(project.founder_university || project.profile?.university) && (
+                      <span className="text-muted-foreground">
+                        {" "}• {project.founder_university || project.profile?.university}
+                      </span>
+                    )}
                   </span>
                 </div>
               </div>
@@ -297,15 +302,15 @@ const StartupDetail = () => {
               <h3 className="font-display font-semibold mb-4">About the Founder</h3>
               <div className="flex items-center gap-3 mb-4">
                 <img
-                  src={project.profile?.avatar_url || '/placeholder.svg'}
-                  alt={project.profile?.full_name || 'Founder'}
+                  src={project.founder_avatar || project.profile?.avatar_url || '/placeholder.svg'}
+                  alt={project.founder_name || project.profile?.full_name || 'Founder'}
                   className="h-12 w-12 rounded-full ring-2 ring-border"
                 />
                 <div>
-                  <p className="font-medium">{project.profile?.full_name || 'Anonymous'}</p>
-                  {project.profile?.university && (
+                  <p className="font-medium">{project.founder_name || project.profile?.full_name || 'Anonymous'}</p>
+                  {(project.founder_university || project.profile?.university) && (
                     <p className="text-sm text-muted-foreground">
-                      {project.profile.university}
+                      {project.founder_university || project.profile?.university}
                     </p>
                   )}
                 </div>
