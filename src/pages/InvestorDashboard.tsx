@@ -34,11 +34,9 @@ interface Project {
   status: string;
   created_at: string;
   owner_id: string;
-  profiles?: {
-    full_name: string;
-    avatar_url: string;
-    university: string;
-  } | null;
+  founder_name: string | null;
+  founder_avatar: string | null;
+  founder_university: string | null;
 }
 
 interface SentRequest {
@@ -82,18 +80,7 @@ const InvestorDashboard = () => {
       .order('created_at', { ascending: false });
 
     if (!error && data) {
-      // Fetch profiles for each project
-      const projectsWithProfiles = await Promise.all(
-        data.map(async (project) => {
-          const { data: profile } = await supabase
-            .from('profiles')
-            .select('full_name, avatar_url, university')
-            .eq('user_id', project.owner_id)
-            .maybeSingle();
-          return { ...project, profiles: profile };
-        })
-      );
-      setProjects(projectsWithProfiles as Project[]);
+      setProjects(data as Project[]);
     }
     setLoading(false);
   };
@@ -310,13 +297,21 @@ const InvestorDashboard = () => {
 
                     {/* Founder */}
                     <div className="flex items-center gap-2 mb-4">
-                      <div className="h-8 w-8 rounded-full bg-secondary flex items-center justify-center text-sm font-semibold">
-                        {project.profiles?.full_name?.[0] || 'S'}
-                      </div>
+                      {project.founder_avatar ? (
+                        <img 
+                          src={project.founder_avatar} 
+                          alt={project.founder_name || 'Founder'} 
+                          className="h-8 w-8 rounded-full object-cover"
+                        />
+                      ) : (
+                        <div className="h-8 w-8 rounded-full bg-secondary flex items-center justify-center text-sm font-semibold">
+                          {project.founder_name?.[0] || 'S'}
+                        </div>
+                      )}
                       <div className="text-sm">
-                        <p className="font-medium">{project.profiles?.full_name || 'Student'}</p>
-                        {project.profiles?.university && (
-                          <p className="text-xs text-muted-foreground">{project.profiles.university}</p>
+                        <p className="font-medium">{project.founder_name || 'Student'}</p>
+                        {project.founder_university && (
+                          <p className="text-xs text-muted-foreground">{project.founder_university}</p>
                         )}
                       </div>
                     </div>
@@ -397,7 +392,7 @@ const InvestorDashboard = () => {
         <DialogContent className="glass-card-strong">
           <DialogHeader>
             <DialogTitle className="font-display text-xl">
-              Contact {selectedProject?.profiles?.full_name || 'Student'}
+              Contact {selectedProject?.founder_name || 'Student'}
             </DialogTitle>
           </DialogHeader>
           <div className="space-y-4 mt-4">
