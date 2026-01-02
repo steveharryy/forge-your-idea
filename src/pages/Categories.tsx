@@ -159,8 +159,8 @@ const Categories = () => {
                     upvotes={0}
                     isFeatured={false}
                     founder={{
-                      name: project.profile?.full_name || 'Anonymous',
-                      avatar: project.profile?.avatar_url || '/placeholder.svg',
+                      name: project.founder_name || project.profile?.full_name || 'Anonymous',
+                      avatar: project.founder_avatar || project.profile?.avatar_url || '/placeholder.svg',
                     }}
                   />
                 </div>
