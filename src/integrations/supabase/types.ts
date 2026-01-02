@@ -97,6 +97,9 @@ export type Database = {
           created_at: string
           demo_url: string | null
           description: string | null
+          founder_avatar: string | null
+          founder_name: string | null
+          founder_university: string | null
           funding_goal: number | null
           github_url: string | null
           id: string
@@ -115,6 +118,9 @@ export type Database = {
           created_at?: string
           demo_url?: string | null
           description?: string | null
+          founder_avatar?: string | null
+          founder_name?: string | null
+          founder_university?: string | null
           funding_goal?: number | null
           github_url?: string | null
           id?: string
@@ -133,6 +139,9 @@ export type Database = {
           created_at?: string
           demo_url?: string | null
           description?: string | null
+          founder_avatar?: string | null
+          founder_name?: string | null
+          founder_university?: string | null
           funding_goal?: number | null
           github_url?: string | null
           id?: string
