@@ -1,4 +1,5 @@
 import { Link, useParams } from "react-router-dom";
+import { useQuery } from "@tanstack/react-query";
 import {
   Brain,
   Cloud,
@@ -9,11 +10,23 @@ import {
   Zap,
   GraduationCap,
   ArrowLeft,
+  Loader2,
 } from "lucide-react";
 import Layout from "@/components/layout/Layout";
 import StartupCard from "@/components/startup/StartupCard";
-import { categories, startups, getStartupsByCategory } from "@/data/mockData";
+import { supabase } from "@/integrations/supabase/client";
 import { LucideIcon } from "lucide-react";
+
+const categoryConfig = [
+  { slug: "ai-ml", name: "AI & ML", dbCategory: "AI & ML" },
+  { slug: "saas", name: "SaaS", dbCategory: "SaaS" },
+  { slug: "developer-tools", name: "Developer Tools", dbCategory: "Developer Tools" },
+  { slug: "fintech", name: "Fintech", dbCategory: "Fintech" },
+  { slug: "health-wellness", name: "Health & Wellness", dbCategory: "Health & Wellness" },
+  { slug: "ecommerce", name: "E-commerce", dbCategory: "E-commerce" },
+  { slug: "productivity", name: "Productivity", dbCategory: "Productivity" },
+  { slug: "education", name: "Education", dbCategory: "Education" },
+];
 
 const categoryIcons: Record<string, LucideIcon> = {
   "ai-ml": Brain,
@@ -29,9 +42,45 @@ const categoryIcons: Record<string, LucideIcon> = {
 const Categories = () => {
   const { slug } = useParams<{ slug?: string }>();
 
+  // Fetch all published projects
+  const { data: projects = [], isLoading } = useQuery({
+    queryKey: ['projects', 'published'],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('projects')
+        .select('*')
+        .eq('status', 'published');
+      
+      if (error) throw error;
+      
+      // Fetch profiles separately
+      const ownerIds = [...new Set(data?.map(p => p.owner_id) || [])];
+      const { data: profiles } = await supabase
+        .from('profiles')
+        .select('user_id, full_name, avatar_url')
+        .in('user_id', ownerIds);
+      
+      const profileMap = new Map(profiles?.map(p => [p.user_id, p]) || []);
+      
+      return (data || []).map(project => ({
+        ...project,
+        profile: profileMap.get(project.owner_id) || null
+      }));
+    },
+  });
+
+  // Get counts per category
+  const getCategoryCount = (dbCategory: string) => {
+    return projects.filter(p => p.category === dbCategory).length;
+  };
+
+  // Get projects for a specific category
+  const getProjectsByCategory = (dbCategory: string) => {
+    return projects.filter(p => p.category === dbCategory);
+  };
+
   if (slug) {
-    const category = categories.find((c) => c.slug === slug);
-    const categoryStartups = getStartupsByCategory(slug);
+    const category = categoryConfig.find((c) => c.slug === slug);
     const Icon = categoryIcons[slug] || Zap;
 
     if (!category) {
@@ -56,6 +105,8 @@ const Categories = () => {
       );
     }
 
+    const categoryProjects = getProjectsByCategory(category.dbCategory);
+
     return (
       <Layout>
         {/* Category Header */}
@@ -78,7 +129,7 @@ const Categories = () => {
                   {category.name}
                 </h1>
                 <p className="text-muted-foreground">
-                  {categoryStartups.length} startups in this category
+                  {categoryProjects.length} startups in this category
                 </p>
               </div>
             </div>
@@ -87,25 +138,29 @@ const Categories = () => {
 
         {/* Startups List */}
         <section className="container py-12">
-          {categoryStartups.length > 0 ? (
+          {isLoading ? (
+            <div className="flex justify-center py-16">
+              <Loader2 className="h-8 w-8 animate-spin text-primary" />
+            </div>
+          ) : categoryProjects.length > 0 ? (
             <div className="space-y-4">
-              {categoryStartups.map((startup, index) => (
+              {categoryProjects.map((project, index) => (
                 <div
-                  key={startup.id}
+                  key={project.id}
                   className="animate-fade-up"
                   style={{ animationDelay: `${index * 0.05}s` }}
                 >
                   <StartupCard
-                    id={startup.id}
-                    name={startup.name}
-                    tagline={startup.tagline}
-                    logo={startup.logo}
-                    category={startup.category}
-                    upvotes={startup.upvotes}
-                    isFeatured={startup.isFeatured}
+                    id={project.id}
+                    name={project.title}
+                    tagline={project.tagline || ''}
+                    logo={project.logo_url || '/placeholder.svg'}
+                    category={project.category || ''}
+                    upvotes={0}
+                    isFeatured={false}
                     founder={{
-                      name: startup.founder.name,
-                      avatar: startup.founder.avatar,
+                      name: project.profile?.full_name || 'Anonymous',
+                      avatar: project.profile?.avatar_url || '/placeholder.svg',
                     }}
                   />
                 </div>
@@ -150,38 +205,41 @@ const Categories = () => {
       </section>
 
       <section className="container py-12">
-        <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-4">
-          {categories.map((category, index) => {
-            const Icon = categoryIcons[category.slug] || Zap;
-            const categoryCount = startups.filter(
-              (s) =>
-                s.category.toLowerCase().replace(/\s+/g, "-") === category.slug
-            ).length;
+        {isLoading ? (
+          <div className="flex justify-center py-16">
+            <Loader2 className="h-8 w-8 animate-spin text-primary" />
+          </div>
+        ) : (
+          <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-4">
+            {categoryConfig.map((category, index) => {
+              const Icon = categoryIcons[category.slug] || Zap;
+              const categoryCount = getCategoryCount(category.dbCategory);
 
-            return (
-              <Link
-                key={category.id}
-                to={`/categories/${category.slug}`}
-                className="group glass-card rounded-2xl p-6 hover-lift animate-fade-up"
-                style={{ animationDelay: `${index * 0.05}s` }}
-              >
-                <div className="flex items-center gap-4 mb-4">
-                  <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-primary/10 group-hover:bg-primary/20 transition-colors">
-                    <Icon className="h-6 w-6 text-primary" />
+              return (
+                <Link
+                  key={category.slug}
+                  to={`/categories/${category.slug}`}
+                  className="group glass-card rounded-2xl p-6 hover-lift animate-fade-up"
+                  style={{ animationDelay: `${index * 0.05}s` }}
+                >
+                  <div className="flex items-center gap-4 mb-4">
+                    <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-primary/10 group-hover:bg-primary/20 transition-colors">
+                      <Icon className="h-6 w-6 text-primary" />
+                    </div>
+                    <div>
+                      <h3 className="font-display font-semibold group-hover:text-primary transition-colors">
+                        {category.name}
+                      </h3>
+                      <p className="text-sm text-muted-foreground">
+                        {categoryCount} {categoryCount === 1 ? 'startup' : 'startups'}
+                      </p>
+                    </div>
                   </div>
-                  <div>
-                    <h3 className="font-display font-semibold group-hover:text-primary transition-colors">
-                      {category.name}
-                    </h3>
-                    <p className="text-sm text-muted-foreground">
-                      {categoryCount} startups
-                    </p>
-                  </div>
-                </div>
-              </Link>
-            );
-          })}
-        </div>
+                </Link>
+              );
+            })}
+          </div>
+        )}
       </section>
     </Layout>
   );
