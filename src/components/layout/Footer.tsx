@@ -1,10 +1,11 @@
+import { forwardRef } from "react";
 import { Link } from "react-router-dom";
 import { Github, Twitter } from "lucide-react";
 import logo from "@/assets/logo.png";
 
-const Footer = () => {
+const Footer = forwardRef<HTMLElement>((_, ref) => {
   return (
-    <footer className="border-t border-border/50 bg-card/30">
+    <footer ref={ref} className="border-t border-border/50 bg-card/30">
       <div className="container py-12">
         <div className="grid grid-cols-1 md:grid-cols-4 gap-8">
           {/* Brand */}
@@ -66,6 +67,8 @@ const Footer = () => {
       </div>
     </footer>
   );
-};
+});
+
+Footer.displayName = "Footer";
 
 export default Footer;
