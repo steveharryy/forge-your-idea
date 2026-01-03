@@ -1,3 +1,4 @@
+import { useEffect } from "react";
 import { useParams, Link } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
 import {
@@ -18,6 +19,11 @@ import StartupCard from "@/components/startup/StartupCard";
 
 const StartupDetail = () => {
   const { id } = useParams<{ id: string }>();
+
+  // Scroll to top when page loads
+  useEffect(() => {
+    window.scrollTo(0, 0);
+  }, [id]);
 
   // Fetch project details
   const { data: project, isLoading } = useQuery({
