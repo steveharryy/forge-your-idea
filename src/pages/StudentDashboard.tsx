@@ -12,9 +12,12 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from 
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
+import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from '@/components/ui/sheet';
+import { Switch } from '@/components/ui/switch';
 import {
   GraduationCap, Plus, LogOut, Rocket, Users, Eye, MessageSquare,
-  ExternalLink, Github, Edit, Trash2, Loader2, FolderOpen, Bell, Settings
+  ExternalLink, Github, Edit, Trash2, Loader2, FolderOpen, Bell, Settings,
+  User, Lock, BellRing, Palette, Globe
 } from 'lucide-react';
 import logo from '@/assets/logo.png';
 
@@ -266,9 +269,108 @@ const StudentDashboard = () => {
                 </span>
               )}
             </Button>
-            <Button variant="ghost" size="icon">
-              <Settings className="h-5 w-5" />
-            </Button>
+            <Sheet>
+              <SheetTrigger asChild>
+                <Button variant="ghost" size="icon">
+                  <Settings className="h-5 w-5" />
+                </Button>
+              </SheetTrigger>
+              <SheetContent className="glass-card-strong border-l border-border/50">
+                <SheetHeader>
+                  <SheetTitle className="font-display text-xl">Settings</SheetTitle>
+                </SheetHeader>
+                <div className="mt-6 space-y-6">
+                  {/* Profile Section */}
+                  <div className="space-y-4">
+                    <div className="flex items-center gap-2 text-sm font-medium text-muted-foreground">
+                      <User className="h-4 w-4" />
+                      Profile
+                    </div>
+                    <div className="space-y-3 pl-6">
+                      <Button variant="outline" className="w-full justify-start" asChild>
+                        <Link to="/profile">
+                          <Edit className="h-4 w-4 mr-2" />
+                          Edit Profile
+                        </Link>
+                      </Button>
+                    </div>
+                  </div>
+
+                  {/* Notifications Section */}
+                  <div className="space-y-4">
+                    <div className="flex items-center gap-2 text-sm font-medium text-muted-foreground">
+                      <BellRing className="h-4 w-4" />
+                      Notifications
+                    </div>
+                    <div className="space-y-3 pl-6">
+                      <div className="flex items-center justify-between">
+                        <span className="text-sm">Email notifications</span>
+                        <Switch defaultChecked />
+                      </div>
+                      <div className="flex items-center justify-between">
+                        <span className="text-sm">Investor inquiries</span>
+                        <Switch defaultChecked />
+                      </div>
+                      <div className="flex items-center justify-between">
+                        <span className="text-sm">Project updates</span>
+                        <Switch defaultChecked />
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Privacy Section */}
+                  <div className="space-y-4">
+                    <div className="flex items-center gap-2 text-sm font-medium text-muted-foreground">
+                      <Lock className="h-4 w-4" />
+                      Privacy
+                    </div>
+                    <div className="space-y-3 pl-6">
+                      <div className="flex items-center justify-between">
+                        <span className="text-sm">Show profile publicly</span>
+                        <Switch defaultChecked />
+                      </div>
+                      <div className="flex items-center justify-between">
+                        <span className="text-sm">Allow contact requests</span>
+                        <Switch defaultChecked />
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Appearance Section */}
+                  <div className="space-y-4">
+                    <div className="flex items-center gap-2 text-sm font-medium text-muted-foreground">
+                      <Palette className="h-4 w-4" />
+                      Appearance
+                    </div>
+                    <div className="space-y-3 pl-6">
+                      <div className="flex items-center justify-between">
+                        <span className="text-sm">Dark mode</span>
+                        <Switch defaultChecked />
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Links Section */}
+                  <div className="space-y-4">
+                    <div className="flex items-center gap-2 text-sm font-medium text-muted-foreground">
+                      <Globe className="h-4 w-4" />
+                      Quick Links
+                    </div>
+                    <div className="space-y-2 pl-6">
+                      <Button variant="ghost" className="w-full justify-start text-sm h-8" asChild>
+                        <Link to="/about">About Us</Link>
+                      </Button>
+                      <Button variant="ghost" className="w-full justify-start text-sm h-8" asChild>
+                        <Link to="/blog">Blog</Link>
+                      </Button>
+                      <Button variant="ghost" className="w-full justify-start text-sm h-8" asChild>
+                        <Link to="/explore">Explore Startups</Link>
+                      </Button>
+                    </div>
+                  </div>
+                </div>
+              </SheetContent>
+            </Sheet>
             <Button variant="ghost" size="sm" onClick={signOut}>
               <LogOut className="h-4 w-4 mr-2" />
               Sign Out
