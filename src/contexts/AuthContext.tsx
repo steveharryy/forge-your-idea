@@ -26,7 +26,7 @@ interface AuthContextType {
     password: string
   ) => Promise<{ error: any }>;
   signInWithGoogle: (
-    role: "student" | "investor"
+    role?: "student" | "investor"
   ) => Promise<{ error: any }>;
   signOut: () => Promise<void>;
 }
@@ -166,17 +166,19 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
 
 
 
-const signInWithGoogle = async (role: "student" | "investor") => {
-  const state = btoa(JSON.stringify({ role }));
+const signInWithGoogle = async (role?: "student" | "investor") => {
+  const redirectUrl = `${window.location.origin}/auth`;
+  const state = role ? btoa(JSON.stringify({ role })) : undefined;
 
   const { error } = await supabase.auth.signInWithOAuth({
     provider: "google",
     options: {
-      // ✅ MUST MATCH YOUR RUNNING DEV SERVER
-      redirectTo: "http://localhost:8082",
-      queryParams: {
-        state,
-      },
+      redirectTo: redirectUrl,
+      ...(state && {
+        queryParams: {
+          state,
+        },
+      }),
     },
   });
 
