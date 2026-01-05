@@ -15,6 +15,7 @@ import Profile from "./pages/Profile";
 import Featured from "./pages/Featured";
 import Categories from "./pages/Categories";
 import Auth from "./pages/Auth";
+import AuthCallback from "./pages/AuthCallback";
 import StudentDashboard from "./pages/StudentDashboard";
 import InvestorDashboard from "./pages/InvestorDashboard";
 import About from "./pages/About";
@@ -41,6 +42,7 @@ const App = () => (
               <Route path="/categories/:slug" element={<Categories />} />
               <Route path="/search" element={<Explore />} />
               <Route path="/auth" element={<Auth />} />
+              <Route path="/auth/callback" element={<AuthCallback />} />
               <Route path="/student-dashboard" element={<StudentDashboard />} />
               <Route path="/investor-dashboard" element={<InvestorDashboard />} />
               <Route path="/about" element={<About />} />

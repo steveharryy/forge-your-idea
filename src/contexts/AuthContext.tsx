@@ -184,7 +184,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
 
 
 const signInWithGoogle = async (role?: "student" | "investor") => {
-  const redirectUrl = `${window.location.origin}/auth`;
+  const redirectUrl = `${window.location.origin}/auth/callback`;
   const state = role ? btoa(JSON.stringify({ role })) : undefined;
 
   const { error } = await supabase.auth.signInWithOAuth({
