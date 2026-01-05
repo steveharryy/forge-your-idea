@@ -94,10 +94,22 @@ const AuthCallback = () => {
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
           transition={{ delay: 0.5 }}
-          className="flex items-center gap-2 text-xs text-muted-foreground/60"
+          className="flex flex-col items-center gap-3 text-xs text-muted-foreground/60"
         >
-          <Loader2 className="w-3 h-3 animate-spin" />
-          <span>Loading your dashboard</span>
+          <div className="flex items-center gap-2">
+            <Loader2 className="w-3 h-3 animate-spin" />
+            <span>Loading your dashboard</span>
+          </div>
+
+          {/* Helpful debug (lets you see exactly what URL the provider returned to) */}
+          <details className="w-full max-w-md rounded-lg border border-border/50 bg-secondary/20 p-3 text-left">
+            <summary className="cursor-pointer select-none">Having trouble? Show debug</summary>
+            <div className="mt-2 space-y-1">
+              <div><span className="label-mono">origin</span>: {window.location.origin}</div>
+              <div className="break-all"><span className="label-mono">url</span>: {window.location.href}</div>
+              <div className="break-all"><span className="label-mono">hash</span>: {window.location.hash || '(empty)'}</div>
+            </div>
+          </details>
         </motion.div>
       </motion.div>
     </div>
