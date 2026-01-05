@@ -265,21 +265,28 @@ useEffect(() => {
             type="button"
             variant="outline"
             className="w-full h-11 rounded-full"
-            onClick={async () => {
-              if (isSignUp && !selectedRole) {
-                toast.error("Please select your role first");
-                return;
-              }
+             onClick={async () => {
+               if (isSignUp && !selectedRole) {
+                 toast.error("Please select your role first");
+                 return;
+               }
 
-              setGoogleLoading(true);
+               // Debug: confirm what URL we ask the provider to redirect back to
+               const expectedRedirect = `${window.location.origin}/auth/callback`;
+               console.log("[Auth] OAuth redirectTo:", expectedRedirect);
+               toast.message(`Redirecting to Google…`, {
+                 description: `Return URL: ${expectedRedirect}`,
+               });
 
-              const { error } = await signInWithGoogle(isSignUp ? selectedRole : undefined);
+               setGoogleLoading(true);
 
-              if (error) {
-                toast.error(error.message);
-                setGoogleLoading(false);
-              }
-            }}
+               const { error } = await signInWithGoogle(isSignUp ? selectedRole : undefined);
+
+               if (error) {
+                 toast.error(error.message);
+                 setGoogleLoading(false);
+               }
+             }}
             disabled={googleLoading}
           >
             {googleLoading ? (
