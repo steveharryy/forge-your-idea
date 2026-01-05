@@ -94,28 +94,25 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
 
   // 🔹 Handle session load + OAuth redirect
   useEffect(() => {
-    const loadSession = async () => {
-      const { data } = await supabase.auth.getSession();
-      setSession(data.session);
-      setUser(data.session?.user ?? null);
+    let active = true;
 
-      if (data.session?.user) {
-        await fetchOrCreateUserRole(data.session.user.id);
-      }
-
-      setLoading(false);
+    const syncRole = (userId: string) => {
+      // Never call Supabase inside onAuthStateChange callback; defer it.
+      setTimeout(() => {
+        if (!active) return;
+        fetchOrCreateUserRole(userId);
+      }, 0);
     };
 
-    loadSession();
-
+    // Listener FIRST (prevents missing events)
     const {
       data: { subscription },
-    } = supabase.auth.onAuthStateChange(async (_event, session) => {
-      setSession(session);
-      setUser(session?.user ?? null);
+    } = supabase.auth.onAuthStateChange((_event, nextSession) => {
+      setSession(nextSession);
+      setUser(nextSession?.user ?? null);
 
-      if (session?.user) {
-        await fetchOrCreateUserRole(session.user.id);
+      if (nextSession?.user) {
+        syncRole(nextSession.user.id);
       } else {
         setUserRole(null);
       }
@@ -123,7 +120,26 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       setLoading(false);
     });
 
-    return () => subscription.unsubscribe();
+    // THEN check existing session
+    supabase.auth.getSession().then(({ data }) => {
+      if (!active) return;
+
+      setSession(data.session);
+      setUser(data.session?.user ?? null);
+
+      if (data.session?.user) {
+        syncRole(data.session.user.id);
+      } else {
+        setUserRole(null);
+      }
+
+      setLoading(false);
+    });
+
+    return () => {
+      active = false;
+      subscription.unsubscribe();
+    };
   }, []);
 
   // 🔹 Email/password signup
@@ -137,6 +153,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       email,
       password,
       options: {
+        emailRedirectTo: `${window.location.origin}/auth`,
         data: {
           full_name: fullName,
         },
