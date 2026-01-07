@@ -180,6 +180,8 @@ const Auth = () => {
             {isSignUp ? (
               selectedRole ? (
                 <SignUp
+                  routing="path"
+                  path="/auth"
                   appearance={{
                     elements: {
                       rootBox: "w-full",
@@ -217,6 +219,8 @@ const Auth = () => {
               )
             ) : (
               <SignIn
+                routing="path"
+                path="/auth"
                 appearance={{
                   elements: {
                     rootBox: "w-full",
