@@ -53,6 +53,7 @@ const InvestorDashboard = () => {
   const navigate = useNavigate();
   const { theme, setTheme } = useTheme();
   const { user, userRole, signOut, loading: authLoading } = useAuth();
+  const userId = user?.id;
   const [projects, setProjects] = useState<Project[]>([]);
   const [sentRequests, setSentRequests] = useState<SentRequest[]>([]);
   const [loading, setLoading] = useState(true);
@@ -65,17 +66,17 @@ const InvestorDashboard = () => {
   const [sendingMessage, setSendingMessage] = useState(false);
 
   useEffect(() => {
-    if (!authLoading && (!user || userRole !== 'investor')) {
+    if (!authLoading && (!userId || userRole !== 'investor')) {
       navigate('/auth');
     }
-  }, [user, userRole, authLoading, navigate]);
+  }, [userId, userRole, authLoading, navigate]);
 
   useEffect(() => {
-    if (user) {
+    if (userId) {
       fetchProjects();
       fetchSentRequests();
     }
-  }, [user]);
+  }, [userId]);
 
   const fetchProjects = async () => {
     const { data, error } = await supabase
@@ -94,7 +95,7 @@ const InvestorDashboard = () => {
     const { data, error } = await supabase
       .from('contact_requests')
       .select('id, project_id, status')
-      .eq('from_user_id', user?.id);
+      .eq('from_user_id', userId);
 
     if (!error && data) {
       setSentRequests(data);
@@ -109,7 +110,7 @@ const InvestorDashboard = () => {
     const { error } = await supabase
       .from('contact_requests')
       .insert({
-        from_user_id: user?.id,
+        from_user_id: userId,
         to_user_id: selectedProject.owner_id,
         project_id: selectedProject.id,
         message: contactMessage,
