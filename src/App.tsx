@@ -58,8 +58,11 @@ const App = () =>
                   <Route path="/categories/:slug" element={<Categories />} />
                   <Route path="/search" element={<Explore />} />
                   <Route path="/auth" element={<Auth />} />
-                  {/* Clerk sometimes appends extra path segments after redirects */}
+
+                  {/* Clerk OAuth / SSO callbacks */}
                   <Route path="/auth/callback/*" element={<AuthCallback />} />
+                  <Route path="/auth/sso-callback/*" element={<AuthCallback />} />
+
                   <Route path="/student-dashboard" element={<StudentDashboard />} />
                   <Route path="/investor-dashboard" element={<InvestorDashboard />} />
                   <Route path="/about" element={<About />} />
