@@ -1,5 +1,4 @@
 import { Link, useParams } from "react-router-dom";
-import { useQuery } from "@tanstack/react-query";
 import {
   Brain,
   Cloud,
@@ -10,11 +9,10 @@ import {
   Zap,
   GraduationCap,
   ArrowLeft,
-  Loader2,
 } from "lucide-react";
 import Layout from "@/components/layout/Layout";
 import StartupCard from "@/components/startup/StartupCard";
-import { supabase } from "@/integrations/supabase/client";
+import { startups, getStartupsByCategory } from "@/data/mockData";
 import { LucideIcon } from "lucide-react";
 
 const categoryConfig = [
@@ -42,41 +40,14 @@ const categoryIcons: Record<string, LucideIcon> = {
 const Categories = () => {
   const { slug } = useParams<{ slug?: string }>();
 
-  // Fetch all published projects
-  const { data: projects = [], isLoading } = useQuery({
-    queryKey: ['projects', 'published'],
-    queryFn: async () => {
-      const { data, error } = await supabase
-        .from('projects')
-        .select('*')
-        .eq('status', 'published');
-      
-      if (error) throw error;
-      
-      // Fetch profiles separately
-      const ownerIds = [...new Set(data?.map(p => p.owner_id) || [])];
-      const { data: profiles } = await supabase
-        .from('profiles')
-        .select('user_id, full_name, avatar_url')
-        .in('user_id', ownerIds);
-      
-      const profileMap = new Map(profiles?.map(p => [p.user_id, p]) || []);
-      
-      return (data || []).map(project => ({
-        ...project,
-        profile: profileMap.get(project.owner_id) || null
-      }));
-    },
-  });
-
   // Get counts per category
   const getCategoryCount = (dbCategory: string) => {
-    return projects.filter(p => p.category === dbCategory).length;
+    return startups.filter(p => p.category === dbCategory).length;
   };
 
   // Get projects for a specific category
-  const getProjectsByCategory = (dbCategory: string) => {
-    return projects.filter(p => p.category === dbCategory);
+  const getProjectsByCategory = (slug: string) => {
+    return getStartupsByCategory(slug);
   };
 
   if (slug) {
@@ -105,7 +76,7 @@ const Categories = () => {
       );
     }
 
-    const categoryProjects = getProjectsByCategory(category.dbCategory);
+    const categoryProjects = getProjectsByCategory(slug);
 
     return (
       <Layout>
@@ -138,11 +109,7 @@ const Categories = () => {
 
         {/* Startups List */}
         <section className="container py-12">
-          {isLoading ? (
-            <div className="flex justify-center py-16">
-              <Loader2 className="h-8 w-8 animate-spin text-primary" />
-            </div>
-          ) : categoryProjects.length > 0 ? (
+          {categoryProjects.length > 0 ? (
             <div className="space-y-4">
               {categoryProjects.map((project, index) => (
                 <div
@@ -152,15 +119,15 @@ const Categories = () => {
                 >
                   <StartupCard
                     id={project.id}
-                    name={project.title}
-                    tagline={project.tagline || ''}
-                    logo={project.logo_url || '/placeholder.svg'}
-                    category={project.category || ''}
-                    upvotes={0}
-                    isFeatured={false}
+                    name={project.name}
+                    tagline={project.tagline}
+                    logo={project.logo}
+                    category={project.category}
+                    upvotes={project.upvotes}
+                    isFeatured={project.isFeatured}
                     founder={{
-                      name: project.founder_name || project.profile?.full_name || 'Anonymous',
-                      avatar: project.founder_avatar || project.profile?.avatar_url || '/placeholder.svg',
+                      name: project.founder.name,
+                      avatar: project.founder.avatar,
                     }}
                   />
                 </div>
@@ -205,41 +172,35 @@ const Categories = () => {
       </section>
 
       <section className="container py-12">
-        {isLoading ? (
-          <div className="flex justify-center py-16">
-            <Loader2 className="h-8 w-8 animate-spin text-primary" />
-          </div>
-        ) : (
-          <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-4">
-            {categoryConfig.map((category, index) => {
-              const Icon = categoryIcons[category.slug] || Zap;
-              const categoryCount = getCategoryCount(category.dbCategory);
+        <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-4">
+          {categoryConfig.map((category, index) => {
+            const Icon = categoryIcons[category.slug] || Zap;
+            const categoryCount = getCategoryCount(category.dbCategory);
 
-              return (
-                <Link
-                  key={category.slug}
-                  to={`/categories/${category.slug}`}
-                  className="group glass-card rounded-2xl p-6 hover-lift animate-fade-up"
-                  style={{ animationDelay: `${index * 0.05}s` }}
-                >
-                  <div className="flex items-center gap-4 mb-4">
-                    <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-primary/10 group-hover:bg-primary/20 transition-colors">
-                      <Icon className="h-6 w-6 text-primary" />
-                    </div>
-                    <div>
-                      <h3 className="font-display font-semibold group-hover:text-primary transition-colors">
-                        {category.name}
-                      </h3>
-                      <p className="text-sm text-muted-foreground">
-                        {categoryCount} {categoryCount === 1 ? 'startup' : 'startups'}
-                      </p>
-                    </div>
+            return (
+              <Link
+                key={category.slug}
+                to={`/categories/${category.slug}`}
+                className="group glass-card rounded-2xl p-6 hover-lift animate-fade-up"
+                style={{ animationDelay: `${index * 0.05}s` }}
+              >
+                <div className="flex items-center gap-4 mb-4">
+                  <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-primary/10 group-hover:bg-primary/20 transition-colors">
+                    <Icon className="h-6 w-6 text-primary" />
                   </div>
-                </Link>
-              );
-            })}
-          </div>
-        )}
+                  <div>
+                    <h3 className="font-display font-semibold group-hover:text-primary transition-colors">
+                      {category.name}
+                    </h3>
+                    <p className="text-sm text-muted-foreground">
+                      {categoryCount} {categoryCount === 1 ? 'startup' : 'startups'}
+                    </p>
+                  </div>
+                </div>
+              </Link>
+            );
+          })}
+        </div>
       </section>
     </Layout>
   );
