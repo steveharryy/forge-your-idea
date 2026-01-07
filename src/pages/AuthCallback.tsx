@@ -1,52 +1,37 @@
-import { useEffect, useState } from "react";
+import { useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "@/contexts/AuthContext";
 import { Loader2 } from "lucide-react";
 
 const AuthCallback = () => {
   const navigate = useNavigate();
-  const { isSignedIn, userRole, loading, syncUser, user } = useAuth();
-  const [syncing, setSyncing] = useState(false);
+  const { isSignedIn, userRole, loading, user } = useAuth();
 
   useEffect(() => {
-    const handleCallback = async () => {
-      if (loading) return;
+    // Wait for auth to load
+    if (loading) return;
 
-      if (!isSignedIn || !user) {
-        navigate("/auth", { replace: true });
-        return;
-      }
+    // Not signed in - redirect to auth
+    if (!isSignedIn || !user) {
+      navigate("/auth", { replace: true });
+      return;
+    }
 
-      // If no role yet, try to sync from Clerk metadata
-      if (!userRole && !syncing) {
-        setSyncing(true);
-        try {
-          const role = (user.unsafeMetadata?.role as "student" | "investor") || 
-                       (user.publicMetadata?.role as "student" | "investor");
-          
-          if (role) {
-            await syncUser(role);
-          }
-        } catch (error) {
-          console.error("Error syncing user:", error);
-        }
-        setSyncing(false);
-        return;
-      }
+    // Check for role in Clerk metadata directly
+    const clerkRole = (user.unsafeMetadata?.role as "student" | "investor") || 
+                      (user.publicMetadata?.role as "student" | "investor") ||
+                      userRole;
 
-      // Route to correct dashboard based on role
-      if (userRole === "investor") {
-        navigate("/investor-dashboard", { replace: true });
-      } else if (userRole === "student") {
-        navigate("/student-dashboard", { replace: true });
-      } else {
-        // No role found - redirect to auth to select one
-        navigate("/auth", { replace: true });
-      }
-    };
-
-    handleCallback();
-  }, [isSignedIn, userRole, loading, navigate, syncUser, user, syncing]);
+    // Route to correct dashboard based on role
+    if (clerkRole === "investor") {
+      navigate("/investor-dashboard", { replace: true });
+    } else if (clerkRole === "student") {
+      navigate("/student-dashboard", { replace: true });
+    } else {
+      // No role found - redirect to auth to select one
+      navigate("/auth", { replace: true });
+    }
+  }, [isSignedIn, userRole, loading, navigate, user]);
 
   return (
     <div className="min-h-screen flex items-center justify-center bg-background">
