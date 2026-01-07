@@ -37,48 +37,79 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       const roleToUse = role || (user.unsafeMetadata?.role as UserRole) || (user.publicMetadata?.role as UserRole);
 
       if (roleToUse) {
+        // Always set the role in state
+        setUserRole(roleToUse);
+        
         // Try to sync to database if API is configured
         const apiUrl = import.meta.env.VITE_API_URL;
         if (apiUrl) {
-          const { createOrUpdateUser } = await import("@/lib/database");
-          await createOrUpdateUser({
-            clerk_id: user.id,
-            email: user.primaryEmailAddress?.emailAddress || "",
-            full_name: user.fullName || user.firstName || "",
-            role: roleToUse,
-            avatar_url: user.imageUrl,
-          });
+          try {
+            const { createOrUpdateUser } = await import("@/lib/database");
+            await createOrUpdateUser({
+              clerk_id: user.id,
+              email: user.primaryEmailAddress?.emailAddress || "",
+              full_name: user.fullName || user.firstName || "",
+              role: roleToUse,
+              avatar_url: user.imageUrl,
+            });
+          } catch (dbError) {
+            console.error("Error syncing to database:", dbError);
+            // Don't fail - role is already set from Clerk metadata
+          }
         }
-        setUserRole(roleToUse);
       }
     } catch (error) {
       console.error("Error syncing user:", error);
     }
   }, [user]);
 
-  // Fetch user role from database on mount
+  // Fetch user role from Clerk metadata on mount
   useEffect(() => {
     const fetchRole = async () => {
-      if (!isLoaded || !isSignedIn || !user) {
+      if (!isLoaded) {
+        return;
+      }
+      
+      if (!isSignedIn || !user) {
         setRoleLoading(false);
         return;
       }
 
       try {
-        // First check Clerk metadata
+        // Get role from Clerk metadata
         const clerkRole = (user.unsafeMetadata?.role as UserRole) || (user.publicMetadata?.role as UserRole);
         
         if (clerkRole) {
-          // Sync to database and set role
-          await syncUser(clerkRole);
-        } else {
-          // Try to get from database if API is configured
+          setUserRole(clerkRole);
+          
+          // Optionally sync to database if API is configured
           const apiUrl = import.meta.env.VITE_API_URL;
           if (apiUrl) {
-            const { getUserRole } = await import("@/lib/database");
-            const dbRole = await getUserRole(user.id);
-            if (dbRole) {
-              setUserRole(dbRole);
+            try {
+              const { createOrUpdateUser } = await import("@/lib/database");
+              await createOrUpdateUser({
+                clerk_id: user.id,
+                email: user.primaryEmailAddress?.emailAddress || "",
+                full_name: user.fullName || user.firstName || "",
+                role: clerkRole,
+                avatar_url: user.imageUrl,
+              });
+            } catch (dbError) {
+              console.error("Error syncing to database:", dbError);
+            }
+          }
+        } else {
+          // Try to get from database if API is configured and no Clerk role
+          const apiUrl = import.meta.env.VITE_API_URL;
+          if (apiUrl) {
+            try {
+              const { getUserRole } = await import("@/lib/database");
+              const dbRole = await getUserRole(user.id);
+              if (dbRole) {
+                setUserRole(dbRole);
+              }
+            } catch (dbError) {
+              console.error("Error fetching from database:", dbError);
             }
           }
         }
@@ -90,7 +121,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     };
 
     fetchRole();
-  }, [isLoaded, isSignedIn, user, syncUser]);
+  }, [isLoaded, isSignedIn, user]);
 
   const signOut = async () => {
     setUserRole(null);
