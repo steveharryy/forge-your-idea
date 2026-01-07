@@ -1,13 +1,12 @@
 import { useState } from "react";
-import { useQuery } from "@tanstack/react-query";
-import { Search, Loader2 } from "lucide-react";
+import { Search } from "lucide-react";
 import Layout from "@/components/layout/Layout";
 import StartupCard from "@/components/startup/StartupCard";
 import StartupCardSkeleton from "@/components/startup/StartupCardSkeleton";
 import CategoryBadge from "@/components/startup/CategoryBadge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { supabase } from "@/integrations/supabase/client";
+import { startups, categories } from "@/data/mockData";
 
 const categoryConfig = [
   { slug: "ai-ml", name: "AI & ML", dbCategory: "AI & ML" },
@@ -25,32 +24,17 @@ const Explore = () => {
   const [selectedCategory, setSelectedCategory] = useState<string | null>(null);
   const [sortBy, setSortBy] = useState<"newest" | "popular">("newest");
 
-  // Fetch all published projects
-  const { data: projects = [], isLoading } = useQuery({
-    queryKey: ['projects', 'explore'],
-    queryFn: async () => {
-      const { data, error } = await supabase
-        .from('projects')
-        .select('*')
-        .eq('status', 'published')
-        .order('created_at', { ascending: false });
-      
-      if (error) throw error;
-      return data || [];
-    },
-  });
-
   // Get category counts
   const getCategoryCount = (dbCategory: string) => {
-    return projects.filter(p => p.category === dbCategory).length;
+    return startups.filter(p => p.category === dbCategory).length;
   };
 
   // Filter and sort projects
-  const filteredProjects = projects
+  const filteredProjects = startups
     .filter((project) => {
       const matchesSearch =
-        project.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        (project.tagline?.toLowerCase().includes(searchQuery.toLowerCase()) ?? false);
+        project.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        project.tagline.toLowerCase().includes(searchQuery.toLowerCase());
       
       const selectedDbCategory = categoryConfig.find(c => c.slug === selectedCategory)?.dbCategory;
       const matchesCategory = !selectedCategory || project.category === selectedDbCategory;
@@ -59,9 +43,12 @@ const Explore = () => {
     })
     .sort((a, b) => {
       if (sortBy === "newest") {
-        return new Date(b.created_at).getTime() - new Date(a.created_at).getTime();
+        return new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime();
       }
-      return 0; // For now, no upvote sorting since we don't have upvotes yet
+      if (sortBy === "popular") {
+        return b.upvotes - a.upvotes;
+      }
+      return 0;
     });
 
   return (
@@ -74,7 +61,7 @@ const Explore = () => {
               Explore Startups
             </h1>
             <p className="text-muted-foreground">
-              Discover {projects.length}+ innovative startups building the future
+              Discover {startups.length}+ innovative startups building the future
             </p>
           </div>
         </section>
@@ -129,13 +116,7 @@ const Explore = () => {
 
           {/* Results */}
           <div className="space-y-4">
-            {isLoading ? (
-              <>
-                <StartupCardSkeleton />
-                <StartupCardSkeleton />
-                <StartupCardSkeleton />
-              </>
-            ) : filteredProjects.length > 0 ? (
+            {filteredProjects.length > 0 ? (
               filteredProjects.map((project, index) => (
                 <div
                   key={project.id}
@@ -144,15 +125,15 @@ const Explore = () => {
                 >
                   <StartupCard
                     id={project.id}
-                    name={project.title}
-                    tagline={project.tagline || ''}
-                    logo={project.logo_url || '/placeholder.svg'}
-                    category={project.category || ''}
-                    upvotes={0}
-                    isFeatured={project.status === 'featured'}
+                    name={project.name}
+                    tagline={project.tagline}
+                    logo={project.logo}
+                    category={project.category}
+                    upvotes={project.upvotes}
+                    isFeatured={project.isFeatured}
                     founder={{
-                      name: project.founder_name || 'Anonymous',
-                      avatar: project.founder_avatar || '/placeholder.svg',
+                      name: project.founder.name,
+                      avatar: project.founder.avatar,
                     }}
                   />
                 </div>

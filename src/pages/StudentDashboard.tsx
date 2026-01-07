@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { useTheme } from 'next-themes';
 import { useAuth } from '@/contexts/AuthContext';
@@ -12,7 +12,6 @@ import { Badge } from '@/components/ui/badge';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from '@/components/ui/sheet';
 import { Switch } from '@/components/ui/switch';
@@ -57,10 +56,9 @@ const StudentDashboard = () => {
   const navigate = useNavigate();
   const { theme, setTheme } = useTheme();
   const { user, userRole, signOut, loading: authLoading } = useAuth();
-  const userId = user?.id;
   const [projects, setProjects] = useState<Project[]>([]);
   const [contactRequests, setContactRequests] = useState<ContactRequest[]>([]);
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(false);
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [editingProject, setEditingProject] = useState<Project | null>(null);
 
@@ -78,60 +76,17 @@ const StudentDashboard = () => {
     funding_goal: '',
   });
 
-  useEffect(() => {
-    if (!authLoading && (!userId || userRole !== 'student')) {
-      navigate('/auth');
-    }
-  }, [userId, userRole, authLoading, navigate]);
-
-  useEffect(() => {
-    if (userId) {
-      fetchProjects();
-      fetchContactRequests();
-    }
-  }, [userId]);
-
-  const fetchProjects = async () => {
-    const { data, error } = await supabase
-      .from('projects')
-      .select('*')
-      .eq('owner_id', userId)
-      .order('created_at', { ascending: false });
-
-    if (!error && data) {
-      setProjects(data);
-    }
-    setLoading(false);
-  };
-
-  const fetchContactRequests = async () => {
-    const { data, error } = await supabase
-      .from('contact_requests')
-      .select('*')
-      .eq('to_user_id', userId)
-      .order('created_at', { ascending: false });
-
-    if (!error && data) {
-      // Fetch profiles for each request
-      const requestsWithProfiles = await Promise.all(
-        data.map(async (request) => {
-          const { data: profile } = await supabase
-            .from('profiles')
-            .select('full_name, avatar_url')
-            .eq('user_id', request.from_user_id)
-            .maybeSingle();
-          return { ...request, profiles: profile };
-        })
-      );
-      setContactRequests(requestsWithProfiles as ContactRequest[]);
-    }
-  };
+  // Redirect if not authenticated or not a student
+  if (!authLoading && (!user || userRole !== 'student')) {
+    navigate('/auth');
+    return null;
+  }
 
   const handleSubmitProject = async (e: React.FormEvent) => {
     e.preventDefault();
     
-    const projectData = {
-      owner_id: userId,
+    const newProject: Project = {
+      id: Date.now().toString(),
       title: formData.title,
       tagline: formData.tagline,
       description: formData.description,
@@ -139,53 +94,29 @@ const StudentDashboard = () => {
       solution: formData.solution,
       tech_stack: formData.tech_stack.split(',').map(t => t.trim()).filter(Boolean),
       category: formData.category,
+      logo_url: '',
       demo_url: formData.demo_url,
       github_url: formData.github_url,
-      funding_goal: formData.funding_goal ? parseFloat(formData.funding_goal) : null,
+      funding_goal: formData.funding_goal ? parseFloat(formData.funding_goal) : 0,
       status: 'published',
+      created_at: new Date().toISOString(),
     };
 
     if (editingProject) {
-      const { error } = await supabase
-        .from('projects')
-        .update(projectData)
-        .eq('id', editingProject.id);
-
-      if (error) {
-        toast.error('Failed to update project');
-      } else {
-        toast.success('Project updated!');
-        fetchProjects();
-      }
+      setProjects(projects.map(p => p.id === editingProject.id ? { ...newProject, id: editingProject.id } : p));
+      toast.success('Project updated!');
     } else {
-      const { error } = await supabase
-        .from('projects')
-        .insert(projectData);
-
-      if (error) {
-        toast.error('Failed to create project');
-      } else {
-        toast.success('Project created!');
-        fetchProjects();
-      }
+      setProjects([newProject, ...projects]);
+      toast.success('Project created!');
     }
 
     setIsDialogOpen(false);
     resetForm();
   };
 
-  const handleDeleteProject = async (id: string) => {
-    const { error } = await supabase
-      .from('projects')
-      .delete()
-      .eq('id', id);
-
-    if (error) {
-      toast.error('Failed to delete project');
-    } else {
-      toast.success('Project deleted');
-      fetchProjects();
-    }
+  const handleDeleteProject = (id: string) => {
+    setProjects(projects.filter(p => p.id !== id));
+    toast.success('Project deleted');
   };
 
   const handleEditProject = (project: Project) => {
@@ -221,21 +152,14 @@ const StudentDashboard = () => {
     });
   };
 
-  const handleRespondToRequest = async (requestId: string, status: 'accepted' | 'rejected') => {
-    const { error } = await supabase
-      .from('contact_requests')
-      .update({ status })
-      .eq('id', requestId);
-
-    if (error) {
-      toast.error('Failed to update request');
-    } else {
-      toast.success(`Request ${status}`);
-      fetchContactRequests();
-    }
+  const handleRespondToRequest = (requestId: string, status: 'accepted' | 'rejected') => {
+    setContactRequests(contactRequests.map(r => 
+      r.id === requestId ? { ...r, status } : r
+    ));
+    toast.success(`Request ${status}`);
   };
 
-  if (authLoading || loading) {
+  if (authLoading) {
     return (
       <div className="min-h-screen flex items-center justify-center">
         <Loader2 className="h-8 w-8 animate-spin text-primary" />
@@ -467,137 +391,127 @@ const StudentDashboard = () => {
                   <form onSubmit={handleSubmitProject} className="space-y-4 mt-4">
                     <div className="grid grid-cols-2 gap-4">
                       <div className="space-y-2">
-                        <Label>Project Name *</Label>
+                        <Label htmlFor="title">Project Title</Label>
                         <Input
+                          id="title"
                           value={formData.title}
                           onChange={(e) => setFormData({ ...formData, title: e.target.value })}
                           placeholder="My Awesome Startup"
                           required
-                          className="bg-secondary/50"
                         />
                       </div>
                       <div className="space-y-2">
-                        <Label>Category *</Label>
-                        <Select
-                          value={formData.category}
-                          onValueChange={(value) => setFormData({ ...formData, category: value })}
-                        >
-                          <SelectTrigger className="bg-secondary/50">
+                        <Label htmlFor="category">Category</Label>
+                        <Select value={formData.category} onValueChange={(v) => setFormData({ ...formData, category: v })}>
+                          <SelectTrigger>
                             <SelectValue placeholder="Select category" />
                           </SelectTrigger>
-                          <SelectContent className="bg-background border shadow-lg z-50">
-                            <SelectItem value="fintech">FinTech</SelectItem>
-                            <SelectItem value="healthcare">Healthcare</SelectItem>
-                            <SelectItem value="edtech">EdTech</SelectItem>
-                            <SelectItem value="ecommerce">E-commerce</SelectItem>
-                            <SelectItem value="ai-ml">AI/ML</SelectItem>
-                            <SelectItem value="saas">SaaS</SelectItem>
-                            <SelectItem value="social-media">Social Media</SelectItem>
-                            <SelectItem value="gaming">Gaming</SelectItem>
-                            <SelectItem value="cleantech">CleanTech</SelectItem>
-                            <SelectItem value="agritech">AgriTech</SelectItem>
-                            <SelectItem value="proptech">PropTech</SelectItem>
-                            <SelectItem value="foodtech">FoodTech</SelectItem>
-                            <SelectItem value="logistics">Logistics</SelectItem>
-                            <SelectItem value="cybersecurity">Cybersecurity</SelectItem>
-                            <SelectItem value="iot">IoT</SelectItem>
-                            <SelectItem value="other">Other</SelectItem>
+                          <SelectContent>
+                            <SelectItem value="AI & ML">AI & ML</SelectItem>
+                            <SelectItem value="SaaS">SaaS</SelectItem>
+                            <SelectItem value="Developer Tools">Developer Tools</SelectItem>
+                            <SelectItem value="Fintech">Fintech</SelectItem>
+                            <SelectItem value="Health & Wellness">Health & Wellness</SelectItem>
+                            <SelectItem value="E-commerce">E-commerce</SelectItem>
+                            <SelectItem value="Productivity">Productivity</SelectItem>
+                            <SelectItem value="Education">Education</SelectItem>
                           </SelectContent>
                         </Select>
                       </div>
                     </div>
 
                     <div className="space-y-2">
-                      <Label>Tagline</Label>
+                      <Label htmlFor="tagline">Tagline</Label>
                       <Input
+                        id="tagline"
                         value={formData.tagline}
                         onChange={(e) => setFormData({ ...formData, tagline: e.target.value })}
-                        placeholder="A one-liner about your project"
-                        className="bg-secondary/50"
+                        placeholder="A short catchy tagline"
                       />
                     </div>
 
                     <div className="space-y-2">
-                      <Label>Description</Label>
+                      <Label htmlFor="description">Description</Label>
                       <Textarea
+                        id="description"
                         value={formData.description}
                         onChange={(e) => setFormData({ ...formData, description: e.target.value })}
-                        placeholder="Detailed description of your project..."
-                        rows={4}
-                        className="bg-secondary/50"
+                        placeholder="Describe your project..."
+                        rows={3}
                       />
                     </div>
 
                     <div className="grid grid-cols-2 gap-4">
                       <div className="space-y-2">
-                        <Label>Problem</Label>
+                        <Label htmlFor="problem">Problem</Label>
                         <Textarea
+                          id="problem"
                           value={formData.problem}
                           onChange={(e) => setFormData({ ...formData, problem: e.target.value })}
                           placeholder="What problem does it solve?"
-                          rows={3}
-                          className="bg-secondary/50"
+                          rows={2}
                         />
                       </div>
                       <div className="space-y-2">
-                        <Label>Solution</Label>
+                        <Label htmlFor="solution">Solution</Label>
                         <Textarea
+                          id="solution"
                           value={formData.solution}
                           onChange={(e) => setFormData({ ...formData, solution: e.target.value })}
                           placeholder="How does it solve the problem?"
-                          rows={3}
-                          className="bg-secondary/50"
+                          rows={2}
                         />
                       </div>
                     </div>
 
                     <div className="space-y-2">
-                      <Label>Tech Stack (comma-separated)</Label>
+                      <Label htmlFor="tech_stack">Tech Stack (comma separated)</Label>
                       <Input
+                        id="tech_stack"
                         value={formData.tech_stack}
                         onChange={(e) => setFormData({ ...formData, tech_stack: e.target.value })}
                         placeholder="React, Node.js, PostgreSQL"
-                        className="bg-secondary/50"
                       />
                     </div>
 
-                    <div className="grid grid-cols-3 gap-4">
+                    <div className="grid grid-cols-2 gap-4">
                       <div className="space-y-2">
-                        <Label>Demo URL</Label>
+                        <Label htmlFor="demo_url">Demo URL</Label>
                         <Input
+                          id="demo_url"
                           value={formData.demo_url}
                           onChange={(e) => setFormData({ ...formData, demo_url: e.target.value })}
-                          placeholder="https://..."
-                          className="bg-secondary/50"
+                          placeholder="https://demo.example.com"
                         />
                       </div>
                       <div className="space-y-2">
-                        <Label>GitHub URL</Label>
+                        <Label htmlFor="github_url">GitHub URL</Label>
                         <Input
+                          id="github_url"
                           value={formData.github_url}
                           onChange={(e) => setFormData({ ...formData, github_url: e.target.value })}
                           placeholder="https://github.com/..."
-                          className="bg-secondary/50"
-                        />
-                      </div>
-                      <div className="space-y-2">
-                        <Label>Funding Goal ($)</Label>
-                        <Input
-                          type="number"
-                          value={formData.funding_goal}
-                          onChange={(e) => setFormData({ ...formData, funding_goal: e.target.value })}
-                          placeholder="50000"
-                          className="bg-secondary/50"
                         />
                       </div>
                     </div>
 
-                    <div className="flex justify-end gap-3 pt-4">
-                      <Button type="button" variant="outline" onClick={() => setIsDialogOpen(false)}>
+                    <div className="space-y-2">
+                      <Label htmlFor="funding_goal">Funding Goal (₹)</Label>
+                      <Input
+                        id="funding_goal"
+                        type="number"
+                        value={formData.funding_goal}
+                        onChange={(e) => setFormData({ ...formData, funding_goal: e.target.value })}
+                        placeholder="100000"
+                      />
+                    </div>
+
+                    <div className="flex gap-3 pt-4">
+                      <Button type="button" variant="outline" onClick={() => setIsDialogOpen(false)} className="flex-1">
                         Cancel
                       </Button>
-                      <Button type="submit" className="bg-primary-gradient">
-                        {editingProject ? 'Save Changes' : 'Create Project'}
+                      <Button type="submit" className="flex-1 bg-primary-gradient">
+                        {editingProject ? 'Update Project' : 'Create Project'}
                       </Button>
                     </div>
                   </form>
@@ -609,7 +523,7 @@ const StudentDashboard = () => {
               <Card className="glass-card p-12 text-center">
                 <FolderOpen className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
                 <h3 className="font-display text-lg font-semibold mb-2">No projects yet</h3>
-                <p className="text-muted-foreground mb-4">Start by creating your first project</p>
+                <p className="text-muted-foreground mb-4">Create your first project to get started</p>
                 <Button onClick={() => setIsDialogOpen(true)} className="bg-primary-gradient">
                   <Plus className="h-4 w-4 mr-2" />
                   Create Project
@@ -617,33 +531,27 @@ const StudentDashboard = () => {
               </Card>
             ) : (
               <div className="grid gap-4">
-                {projects.map((project, i) => (
-                  <Card key={project.id} className={`glass-card p-6 hover-lift animate-fade-up stagger-${(i % 5) + 1}`}>
-                    <div className="flex items-start justify-between gap-4">
+                {projects.map((project) => (
+                  <Card key={project.id} className="glass-card p-6">
+                    <div className="flex items-start justify-between">
                       <div className="flex-1">
                         <div className="flex items-center gap-3 mb-2">
                           <h3 className="font-display text-lg font-semibold">{project.title}</h3>
-                          {project.category && (
-                            <Badge variant="secondary">{project.category}</Badge>
-                          )}
+                          <Badge variant="secondary">{project.category}</Badge>
                           <Badge variant={project.status === 'published' ? 'default' : 'outline'}>
                             {project.status}
                           </Badge>
                         </div>
-                        {project.tagline && (
-                          <p className="text-muted-foreground mb-3">{project.tagline}</p>
-                        )}
-                        {project.tech_stack && project.tech_stack.length > 0 && (
-                          <div className="flex flex-wrap gap-2">
-                            {project.tech_stack.map((tech) => (
-                              <Badge key={tech} variant="outline" className="text-xs">
-                                {tech}
-                              </Badge>
-                            ))}
-                          </div>
-                        )}
+                        <p className="text-muted-foreground mb-3">{project.tagline}</p>
+                        <div className="flex flex-wrap gap-2">
+                          {project.tech_stack?.map((tech) => (
+                            <Badge key={tech} variant="outline" className="text-xs">
+                              {tech}
+                            </Badge>
+                          ))}
+                        </div>
                       </div>
-                      <div className="flex items-center gap-2">
+                      <div className="flex gap-2">
                         {project.demo_url && (
                           <Button variant="ghost" size="icon" asChild>
                             <a href={project.demo_url} target="_blank" rel="noopener noreferrer">
@@ -661,13 +569,8 @@ const StudentDashboard = () => {
                         <Button variant="ghost" size="icon" onClick={() => handleEditProject(project)}>
                           <Edit className="h-4 w-4" />
                         </Button>
-                        <Button
-                          variant="ghost"
-                          size="icon"
-                          className="text-destructive hover:text-destructive"
-                          onClick={() => handleDeleteProject(project.id)}
-                        >
-                          <Trash2 className="h-4 w-4" />
+                        <Button variant="ghost" size="icon" onClick={() => handleDeleteProject(project.id)}>
+                          <Trash2 className="h-4 w-4 text-destructive" />
                         </Button>
                       </div>
                     </div>
@@ -679,53 +582,41 @@ const StudentDashboard = () => {
 
           <TabsContent value="inquiries" className="space-y-4">
             <h2 className="font-display text-xl font-semibold">Investor Inquiries</h2>
-            
             {contactRequests.length === 0 ? (
               <Card className="glass-card p-12 text-center">
                 <MessageSquare className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
                 <h3 className="font-display text-lg font-semibold mb-2">No inquiries yet</h3>
-                <p className="text-muted-foreground">When investors reach out, their messages will appear here</p>
+                <p className="text-muted-foreground">Investors will appear here when they contact you</p>
               </Card>
             ) : (
-              <div className="grid gap-4">
-                {contactRequests.map((request, i) => (
-                  <Card key={request.id} className={`glass-card p-6 animate-fade-up stagger-${(i % 5) + 1}`}>
-                    <div className="flex items-start justify-between gap-4">
+              <div className="space-y-4">
+                {contactRequests.map((request) => (
+                  <Card key={request.id} className="glass-card p-6">
+                    <div className="flex items-start gap-4">
+                      <img
+                        src={request.profiles?.avatar_url || '/placeholder.svg'}
+                        alt={request.profiles?.full_name || 'Investor'}
+                        className="h-12 w-12 rounded-full"
+                      />
                       <div className="flex-1">
-                        <div className="flex items-center gap-3 mb-2">
-                          <div className="h-10 w-10 rounded-full bg-investor-gradient flex items-center justify-center text-warning-foreground font-semibold">
-                            {request.profiles?.full_name?.[0] || 'I'}
-                          </div>
-                          <div>
-                            <p className="font-semibold">{request.profiles?.full_name || 'Investor'}</p>
-                            <p className="text-xs text-muted-foreground">
-                              {new Date(request.created_at).toLocaleDateString()}
-                            </p>
-                          </div>
+                        <div className="flex items-center justify-between mb-2">
+                          <h4 className="font-semibold">{request.profiles?.full_name || 'Investor'}</h4>
                           <Badge variant={request.status === 'pending' ? 'default' : request.status === 'accepted' ? 'secondary' : 'outline'}>
                             {request.status}
                           </Badge>
                         </div>
-                        <p className="text-muted-foreground">{request.message}</p>
+                        <p className="text-muted-foreground mb-4">{request.message}</p>
+                        {request.status === 'pending' && (
+                          <div className="flex gap-2">
+                            <Button size="sm" onClick={() => handleRespondToRequest(request.id, 'accepted')}>
+                              Accept
+                            </Button>
+                            <Button size="sm" variant="outline" onClick={() => handleRespondToRequest(request.id, 'rejected')}>
+                              Decline
+                            </Button>
+                          </div>
+                        )}
                       </div>
-                      {request.status === 'pending' && (
-                        <div className="flex gap-2">
-                          <Button
-                            size="sm"
-                            className="bg-success text-success-foreground hover:bg-success/90"
-                            onClick={() => handleRespondToRequest(request.id, 'accepted')}
-                          >
-                            Accept
-                          </Button>
-                          <Button
-                            size="sm"
-                            variant="outline"
-                            onClick={() => handleRespondToRequest(request.id, 'rejected')}
-                          >
-                            Decline
-                          </Button>
-                        </div>
-                      )}
                     </div>
                   </Card>
                 ))}
@@ -734,18 +625,11 @@ const StudentDashboard = () => {
           </TabsContent>
 
           <TabsContent value="team" className="space-y-4">
-            <div className="flex items-center justify-between">
-              <h2 className="font-display text-xl font-semibold">Team Members</h2>
-              <Button variant="outline" disabled>
-                <Plus className="h-4 w-4 mr-2" />
-                Invite Member
-              </Button>
-            </div>
-            
+            <h2 className="font-display text-xl font-semibold">Team Management</h2>
             <Card className="glass-card p-12 text-center">
               <Users className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
-              <h3 className="font-display text-lg font-semibold mb-2">Team collaboration coming soon</h3>
-              <p className="text-muted-foreground">Invite team members to collaborate on your projects</p>
+              <h3 className="font-display text-lg font-semibold mb-2">Coming Soon</h3>
+              <p className="text-muted-foreground">Team management features are under development</p>
             </Card>
           </TabsContent>
         </Tabs>
