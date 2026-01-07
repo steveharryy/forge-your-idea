@@ -24,7 +24,7 @@ import {
   getAllPublishedProjects, sendContactRequest, getSentContactRequests,
   DbProject, DbContactRequest
 } from '@/lib/database';
-import { supabase } from '@/integrations/supabase/client';
+import { getSupabase } from '@/lib/supabaseHelper';
 
 const InvestorDashboard = () => {
   const navigate = useNavigate();
@@ -56,60 +56,74 @@ const InvestorDashboard = () => {
           getAllPublishedProjects(),
           getSentContactRequests(user.id),
         ]);
-      } catch {
-        console.log('External API not available, falling back to Supabase');
+      } catch (apiError) {
+        console.log('External API not available:', apiError);
       }
       
       // Fallback to Supabase if API returns empty or fails
       if (projectsData.length === 0) {
-        const { data: supabaseProjects } = await supabase
-          .from('projects')
-          .select('*')
-          .eq('status', 'published')
-          .order('created_at', { ascending: false });
-        
-        if (supabaseProjects && supabaseProjects.length > 0) {
-          projectsData = supabaseProjects.map(p => ({
-            id: p.id,
-            owner_clerk_id: p.owner_id,
-            title: p.title,
-            tagline: p.tagline,
-            description: p.description,
-            problem: p.problem,
-            solution: p.solution,
-            tech_stack: p.tech_stack,
-            category: p.category,
-            demo_url: p.demo_url,
-            github_url: p.github_url,
-            funding_goal: p.funding_goal,
-            founder_name: p.founder_name,
-            founder_avatar: p.founder_avatar,
-            founder_university: p.founder_university,
-            logo_url: p.logo_url,
-            status: p.status,
-            created_at: p.created_at,
-            updated_at: p.updated_at,
-          }));
+        try {
+          const supabase = await getSupabase();
+          if (supabase) {
+            const { data: supabaseProjects } = await supabase
+              .from('projects')
+              .select('*')
+              .eq('status', 'published')
+              .order('created_at', { ascending: false });
+            
+            if (supabaseProjects && supabaseProjects.length > 0) {
+              projectsData = supabaseProjects.map(p => ({
+                id: p.id,
+                owner_clerk_id: p.owner_id,
+                title: p.title,
+                tagline: p.tagline,
+                description: p.description,
+                problem: p.problem,
+                solution: p.solution,
+                tech_stack: p.tech_stack,
+                category: p.category,
+                demo_url: p.demo_url,
+                github_url: p.github_url,
+                funding_goal: p.funding_goal,
+                founder_name: p.founder_name,
+                founder_avatar: p.founder_avatar,
+                founder_university: p.founder_university,
+                logo_url: p.logo_url,
+                status: p.status,
+                created_at: p.created_at,
+                updated_at: p.updated_at,
+              }));
+            }
+          }
+        } catch (supabaseError) {
+          console.log('Supabase fallback failed:', supabaseError);
         }
       }
       
       // Fallback contact requests from Supabase
       if (requestsData.length === 0) {
-        const { data: supabaseRequests } = await supabase
-          .from('contact_requests')
-          .select('*')
-          .eq('from_user_id', user.id);
-        
-        if (supabaseRequests) {
-          requestsData = supabaseRequests.map(r => ({
-            id: r.id,
-            from_clerk_id: r.from_user_id,
-            to_clerk_id: r.to_user_id,
-            project_id: r.project_id,
-            message: r.message,
-            status: r.status || 'pending',
-            created_at: r.created_at,
-          }));
+        try {
+          const supabase = await getSupabase();
+          if (supabase) {
+            const { data: supabaseRequests } = await supabase
+              .from('contact_requests')
+              .select('*')
+              .eq('from_user_id', user.id);
+            
+            if (supabaseRequests) {
+              requestsData = supabaseRequests.map(r => ({
+                id: r.id,
+                from_clerk_id: r.from_user_id,
+                to_clerk_id: r.to_user_id,
+                project_id: r.project_id,
+                message: r.message,
+                status: r.status || 'pending',
+                created_at: r.created_at,
+              }));
+            }
+          }
+        } catch (supabaseError) {
+          console.log('Supabase contact requests fallback failed:', supabaseError);
         }
       }
       
