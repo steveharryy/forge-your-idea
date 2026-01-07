@@ -1,6 +1,5 @@
 import { createContext, useContext, ReactNode, useEffect, useState, useCallback } from "react";
 import { useUser, useAuth as useClerkAuth } from "@clerk/clerk-react";
-import { createOrUpdateUser, getUserRole } from "@/lib/database";
 
 type UserRole = "student" | "investor" | null;
 
@@ -29,7 +28,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const [userRole, setUserRole] = useState<UserRole>(null);
   const [roleLoading, setRoleLoading] = useState(true);
 
-  // Sync user to PostgreSQL database
+  // Sync user role (will sync to database if VITE_API_URL is set)
   const syncUser = useCallback(async (role?: UserRole) => {
     if (!user) return;
 
@@ -38,13 +37,18 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       const roleToUse = role || (user.unsafeMetadata?.role as UserRole) || (user.publicMetadata?.role as UserRole);
 
       if (roleToUse) {
-        await createOrUpdateUser({
-          clerk_id: user.id,
-          email: user.primaryEmailAddress?.emailAddress || "",
-          full_name: user.fullName || user.firstName || "",
-          role: roleToUse,
-          avatar_url: user.imageUrl,
-        });
+        // Try to sync to database if API is configured
+        const apiUrl = import.meta.env.VITE_API_URL;
+        if (apiUrl) {
+          const { createOrUpdateUser } = await import("@/lib/database");
+          await createOrUpdateUser({
+            clerk_id: user.id,
+            email: user.primaryEmailAddress?.emailAddress || "",
+            full_name: user.fullName || user.firstName || "",
+            role: roleToUse,
+            avatar_url: user.imageUrl,
+          });
+        }
         setUserRole(roleToUse);
       }
     } catch (error) {
@@ -68,10 +72,14 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
           // Sync to database and set role
           await syncUser(clerkRole);
         } else {
-          // Try to get from database
-          const dbRole = await getUserRole(user.id);
-          if (dbRole) {
-            setUserRole(dbRole);
+          // Try to get from database if API is configured
+          const apiUrl = import.meta.env.VITE_API_URL;
+          if (apiUrl) {
+            const { getUserRole } = await import("@/lib/database");
+            const dbRole = await getUserRole(user.id);
+            if (dbRole) {
+              setUserRole(dbRole);
+            }
           }
         }
       } catch (error) {

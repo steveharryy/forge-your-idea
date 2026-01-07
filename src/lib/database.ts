@@ -1,21 +1,29 @@
-import { supabase } from "@/integrations/supabase/client";
+// Database API wrapper - calls your Vercel API connected to Neon PostgreSQL
 
-// Database API wrapper for external PostgreSQL via Edge Function
+const API_URL = import.meta.env.VITE_API_URL || '';
+
 export async function dbQuery<T = unknown>(action: string, data: Record<string, unknown> = {}): Promise<T[]> {
-  const { data: response, error } = await supabase.functions.invoke("database", {
-    body: { action, data },
+  if (!API_URL) {
+    console.warn('VITE_API_URL not set - using mock data');
+    return [] as T[];
+  }
+
+  const response = await fetch(`${API_URL}/api/db`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({ action, data }),
   });
 
-  if (error) {
-    console.error("Database query error:", error);
-    throw new Error(error.message || "Database query failed");
+  const result = await response.json();
+
+  if (!response.ok || !result.success) {
+    console.error('Database query error:', result.error);
+    throw new Error(result.error || 'Database query failed');
   }
 
-  if (!response.success) {
-    throw new Error(response.error || "Database operation failed");
-  }
-
-  return response.data as T[];
+  return result.data as T[];
 }
 
 // ========== User Functions ==========
