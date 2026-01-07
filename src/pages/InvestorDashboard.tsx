@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { useTheme } from 'next-themes';
 import { useAuth } from '@/contexts/AuthContext';
@@ -8,7 +8,7 @@ import { Card } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { Badge } from '@/components/ui/badge';
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from '@/components/ui/sheet';
 import { Switch } from '@/components/ui/switch';
@@ -17,56 +17,93 @@ import { toast } from 'sonner';
 import {
   TrendingUp, LogOut, Search, Rocket, MessageSquare,
   Github, Loader2, Filter, Star, Send,
-  Briefcase, Globe, Sparkles, Settings, User, BellRing, Lock, Palette, Edit, Sun, Moon, ExternalLink
+  Globe, Sparkles, Settings, User, Palette, Edit, Sun, Moon, ExternalLink
 } from 'lucide-react';
 import logo from '@/assets/logo.png';
-import { startups } from '@/data/mockData';
-
-interface SentRequest {
-  id: string;
-  project_id: string;
-  status: string;
-}
+import { 
+  getAllPublishedProjects, sendContactRequest, getSentContactRequests,
+  DbProject, DbContactRequest
+} from '@/lib/database';
 
 const InvestorDashboard = () => {
   const navigate = useNavigate();
   const { theme, setTheme } = useTheme();
   const { user, userRole, signOut, loading: authLoading } = useAuth();
-  const [sentRequests, setSentRequests] = useState<SentRequest[]>([]);
+  const [projects, setProjects] = useState<DbProject[]>([]);
+  const [sentRequests, setSentRequests] = useState<DbContactRequest[]>([]);
+  const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState('');
   const [categoryFilter, setCategoryFilter] = useState('all');
   const [sortBy, setSortBy] = useState('newest');
   const [contactDialogOpen, setContactDialogOpen] = useState(false);
-  const [selectedProject, setSelectedProject] = useState<typeof startups[0] | null>(null);
+  const [selectedProject, setSelectedProject] = useState<DbProject | null>(null);
   const [contactMessage, setContactMessage] = useState('');
   const [sendingMessage, setSendingMessage] = useState(false);
 
+  // Load data from database
+  const loadData = useCallback(async () => {
+    if (!user) return;
+    
+    setLoading(true);
+    try {
+      const [projectsData, requestsData] = await Promise.all([
+        getAllPublishedProjects(),
+        getSentContactRequests(user.id),
+      ]);
+      setProjects(projectsData);
+      setSentRequests(requestsData);
+    } catch (error) {
+      console.error('Error loading data:', error);
+      toast.error('Failed to load data');
+    } finally {
+      setLoading(false);
+    }
+  }, [user]);
+
+  useEffect(() => {
+    if (user && userRole === 'investor') {
+      loadData();
+    }
+  }, [user, userRole, loadData]);
+
   // Redirect if not authenticated or not an investor
-  if (!authLoading && (!user || userRole !== 'investor')) {
-    navigate('/auth');
-    return null;
+  useEffect(() => {
+    if (!authLoading && (!user || userRole !== 'investor')) {
+      navigate('/auth');
+    }
+  }, [authLoading, user, userRole, navigate]);
+
+  if (authLoading || !user) {
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        <Loader2 className="h-8 w-8 animate-spin text-warning" />
+      </div>
+    );
   }
 
   const handleContactStudent = async () => {
-    if (!selectedProject || !contactMessage.trim()) return;
+    if (!selectedProject || !contactMessage.trim() || !user) return;
     
     setSendingMessage(true);
-    
-    // Simulate sending message
-    await new Promise(resolve => setTimeout(resolve, 1000));
-    
-    const newRequest: SentRequest = {
-      id: Date.now().toString(),
-      project_id: selectedProject.id,
-      status: 'pending',
-    };
-    
-    setSentRequests([...sentRequests, newRequest]);
-    toast.success('Message sent to the student!');
-    setContactDialogOpen(false);
-    setContactMessage('');
-    setSelectedProject(null);
-    setSendingMessage(false);
+    try {
+      const newRequest = await sendContactRequest({
+        from_clerk_id: user.id,
+        to_clerk_id: selectedProject.owner_clerk_id,
+        project_id: selectedProject.id,
+        message: contactMessage,
+      });
+      
+      setSentRequests([...sentRequests, newRequest]);
+      toast.success('Message sent to the student!');
+      setContactDialogOpen(false);
+      setContactMessage('');
+      setSelectedProject(null);
+    } catch (error) {
+      console.error('Error sending message:', error);
+      toast.error('Failed to send message');
+    } finally {
+      setSendingMessage(false);
+    }
   };
 
   const getRequestStatus = (projectId: string) => {
@@ -74,33 +111,22 @@ const InvestorDashboard = () => {
     return request?.status || null;
   };
 
-  const categories = ['all', ...new Set(startups.map(p => p.category).filter(Boolean))];
+  const categories = ['all', ...new Set(projects.map(p => p.category).filter(Boolean))];
 
-  const filteredProjects = startups
+  const filteredProjects = projects
     .filter(project => {
-      const matchesSearch = project.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        project.tagline.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        project.techStack?.some(t => t.toLowerCase().includes(searchQuery.toLowerCase()));
+      const matchesSearch = project.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        (project.tagline?.toLowerCase() || '').includes(searchQuery.toLowerCase()) ||
+        project.tech_stack?.some(t => t.toLowerCase().includes(searchQuery.toLowerCase()));
       const matchesCategory = categoryFilter === 'all' || project.category === categoryFilter;
       return matchesSearch && matchesCategory;
     })
     .sort((a, b) => {
       if (sortBy === 'newest') {
-        return new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime();
-      }
-      if (sortBy === 'popular') {
-        return b.upvotes - a.upvotes;
+        return new Date(b.created_at).getTime() - new Date(a.created_at).getTime();
       }
       return 0;
     });
-
-  if (authLoading) {
-    return (
-      <div className="min-h-screen flex items-center justify-center">
-        <Loader2 className="h-8 w-8 animate-spin text-warning" />
-      </div>
-    );
-  }
 
   return (
     <div className="min-h-screen relative">
@@ -153,46 +179,6 @@ const InvestorDashboard = () => {
                       </div>
                     </div>
 
-                    {/* Notifications Section */}
-                    <div className="space-y-4">
-                      <div className="flex items-center gap-2 text-sm font-medium text-muted-foreground">
-                        <BellRing className="h-4 w-4" />
-                        Notifications
-                      </div>
-                      <div className="space-y-3 pl-6">
-                        <div className="flex items-center justify-between">
-                          <span className="text-sm">Email notifications</span>
-                          <Switch defaultChecked />
-                        </div>
-                        <div className="flex items-center justify-between">
-                          <span className="text-sm">New project alerts</span>
-                          <Switch defaultChecked />
-                        </div>
-                        <div className="flex items-center justify-between">
-                          <span className="text-sm">Response updates</span>
-                          <Switch defaultChecked />
-                        </div>
-                      </div>
-                    </div>
-
-                    {/* Privacy Section */}
-                    <div className="space-y-4">
-                      <div className="flex items-center gap-2 text-sm font-medium text-muted-foreground">
-                        <Lock className="h-4 w-4" />
-                        Privacy
-                      </div>
-                      <div className="space-y-3 pl-6">
-                        <div className="flex items-center justify-between">
-                          <span className="text-sm">Show profile publicly</span>
-                          <Switch defaultChecked />
-                        </div>
-                        <div className="flex items-center justify-between">
-                          <span className="text-sm">Show investment history</span>
-                          <Switch />
-                        </div>
-                      </div>
-                    </div>
-
                     {/* Appearance Section */}
                     <div className="space-y-4">
                       <div className="flex items-center gap-2 text-sm font-medium text-muted-foreground">
@@ -222,9 +208,6 @@ const InvestorDashboard = () => {
                       <div className="space-y-2 pl-6">
                         <Button variant="ghost" className="w-full justify-start text-sm h-8" asChild>
                           <Link to="/about">About Us</Link>
-                        </Button>
-                        <Button variant="ghost" className="w-full justify-start text-sm h-8" asChild>
-                          <Link to="/blog">Blog</Link>
                         </Button>
                         <Button variant="ghost" className="w-full justify-start text-sm h-8" asChild>
                           <Link to="/explore">Explore Startups</Link>
@@ -257,7 +240,7 @@ const InvestorDashboard = () => {
         {/* Stats */}
         <div className="grid grid-cols-1 sm:grid-cols-4 gap-4 mb-8">
           {[
-            { label: 'Active Projects', value: startups.length, icon: Rocket, color: 'bg-primary' },
+            { label: 'Active Projects', value: projects.length, icon: Rocket, color: 'bg-primary' },
             { label: 'Contacted', value: sentRequests.length, icon: MessageSquare, color: 'bg-accent' },
             { label: 'Accepted', value: sentRequests.filter(r => r.status === 'accepted').length, icon: Star, color: 'bg-success' },
             { label: 'Pending', value: sentRequests.filter(r => r.status === 'pending').length, icon: Send, color: 'bg-warning' },
@@ -269,7 +252,7 @@ const InvestorDashboard = () => {
                   <p className="font-display text-2xl font-bold">{stat.value}</p>
                 </div>
                 <div className={`p-3 rounded-xl ${stat.color}/10`}>
-                  <stat.icon className={`h-5 w-5 text-${stat.color.replace('bg-', '')}`} />
+                  <stat.icon className={`h-5 w-5 text-primary`} />
                 </div>
               </div>
             </Card>
@@ -316,11 +299,15 @@ const InvestorDashboard = () => {
         </Card>
 
         {/* Projects Grid */}
-        {filteredProjects.length === 0 ? (
+        {loading ? (
+          <div className="flex items-center justify-center py-12">
+            <Loader2 className="h-8 w-8 animate-spin text-primary" />
+          </div>
+        ) : filteredProjects.length === 0 ? (
           <Card className="glass-card p-12 text-center">
             <Sparkles className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
             <h3 className="font-display text-lg font-semibold mb-2">No projects found</h3>
-            <p className="text-muted-foreground">Try adjusting your filters or search query</p>
+            <p className="text-muted-foreground">Try adjusting your filters or check back later</p>
           </Card>
         ) : (
           <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
@@ -336,14 +323,14 @@ const InvestorDashboard = () => {
                   <div className="p-6 pb-4">
                     <div className="flex items-start justify-between mb-4">
                       <div className="h-14 w-14 rounded-2xl bg-primary-gradient flex items-center justify-center text-primary-foreground font-display font-bold text-xl">
-                        {project.name[0]}
+                        {project.title[0]}
                       </div>
                       {project.category && (
                         <Badge variant="secondary">{project.category}</Badge>
                       )}
                     </div>
                     <h3 className="font-display text-xl font-bold mb-2 group-hover:text-primary transition-colors">
-                      {project.name}
+                      {project.title}
                     </h3>
                     {project.tagline && (
                       <p className="text-muted-foreground text-sm line-clamp-2 mb-4">
@@ -354,26 +341,29 @@ const InvestorDashboard = () => {
                     {/* Founder */}
                     <div className="flex items-center gap-2 mb-4">
                       <img 
-                        src={project.founder.avatar} 
-                        alt={project.founder.name} 
+                        src={project.founder_avatar || '/placeholder.svg'} 
+                        alt={project.founder_name || 'Founder'} 
                         className="h-8 w-8 rounded-full object-cover"
                       />
                       <div>
-                        <p className="text-sm font-medium">{project.founder.name}</p>
+                        <p className="text-sm font-medium">{project.founder_name || 'Anonymous'}</p>
+                        {project.founder_university && (
+                          <p className="text-xs text-muted-foreground">{project.founder_university}</p>
+                        )}
                       </div>
                     </div>
 
                     {/* Tech Stack */}
-                    {project.techStack && project.techStack.length > 0 && (
+                    {project.tech_stack && project.tech_stack.length > 0 && (
                       <div className="flex flex-wrap gap-1.5 mb-4">
-                        {project.techStack.slice(0, 3).map((tech) => (
+                        {project.tech_stack.slice(0, 3).map((tech) => (
                           <Badge key={tech} variant="outline" className="text-xs">
                             {tech}
                           </Badge>
                         ))}
-                        {project.techStack.length > 3 && (
+                        {project.tech_stack.length > 3 && (
                           <Badge variant="outline" className="text-xs">
-                            +{project.techStack.length - 3}
+                            +{project.tech_stack.length - 3}
                           </Badge>
                         )}
                       </div>
@@ -382,83 +372,43 @@ const InvestorDashboard = () => {
 
                   {/* Actions */}
                   <div className="p-4 pt-0 flex gap-2">
-                    {project.website && (
+                    {project.demo_url && (
                       <Button variant="outline" size="sm" className="flex-1" asChild>
-                        <a href={project.website} target="_blank" rel="noopener noreferrer">
+                        <a href={project.demo_url} target="_blank" rel="noopener noreferrer">
                           <ExternalLink className="h-3.5 w-3.5 mr-1.5" />
                           Demo
                         </a>
                       </Button>
                     )}
-                    {project.github && (
+                    {project.github_url && (
                       <Button variant="outline" size="icon" className="h-8 w-8" asChild>
-                        <a href={project.github} target="_blank" rel="noopener noreferrer">
+                        <a href={project.github_url} target="_blank" rel="noopener noreferrer">
                           <Github className="h-3.5 w-3.5" />
                         </a>
                       </Button>
                     )}
                     {requestStatus ? (
-                      <Badge variant={requestStatus === 'pending' ? 'secondary' : requestStatus === 'accepted' ? 'default' : 'outline'} className="ml-auto">
-                        {requestStatus}
+                      <Badge 
+                        className={`h-8 px-3 ${
+                          requestStatus === 'accepted' ? 'bg-success' : 
+                          requestStatus === 'pending' ? 'bg-warning' : 'bg-muted'
+                        }`}
+                      >
+                        {requestStatus === 'accepted' ? '✓ Accepted' : 
+                         requestStatus === 'pending' ? '⏳ Pending' : requestStatus}
                       </Badge>
                     ) : (
-                      <Dialog open={contactDialogOpen && selectedProject?.id === project.id} onOpenChange={(open) => {
-                        setContactDialogOpen(open);
-                        if (!open) {
-                          setSelectedProject(null);
-                          setContactMessage('');
-                        }
-                      }}>
-                        <DialogTrigger asChild>
-                          <Button 
-                            size="sm" 
-                            className="ml-auto bg-primary-gradient"
-                            onClick={() => setSelectedProject(project)}
-                          >
-                            <MessageSquare className="h-3.5 w-3.5 mr-1.5" />
-                            Contact
-                          </Button>
-                        </DialogTrigger>
-                        <DialogContent className="glass-card-strong">
-                          <DialogHeader>
-                            <DialogTitle className="font-display">Contact {project.founder.name}</DialogTitle>
-                          </DialogHeader>
-                          <div className="space-y-4 mt-4">
-                            <div className="flex items-center gap-3 p-3 rounded-lg bg-secondary/50">
-                              <div className="h-10 w-10 rounded-lg bg-primary/10 flex items-center justify-center font-bold">
-                                {project.name[0]}
-                              </div>
-                              <div>
-                                <p className="font-medium">{project.name}</p>
-                                <p className="text-sm text-muted-foreground">{project.tagline}</p>
-                              </div>
-                            </div>
-                            <Textarea
-                              value={contactMessage}
-                              onChange={(e) => setContactMessage(e.target.value)}
-                              placeholder="Introduce yourself and explain why you're interested in this project..."
-                              rows={4}
-                            />
-                            <div className="flex gap-3">
-                              <Button variant="outline" className="flex-1" onClick={() => setContactDialogOpen(false)}>
-                                Cancel
-                              </Button>
-                              <Button 
-                                className="flex-1 bg-primary-gradient" 
-                                onClick={handleContactStudent}
-                                disabled={sendingMessage || !contactMessage.trim()}
-                              >
-                                {sendingMessage ? (
-                                  <Loader2 className="h-4 w-4 animate-spin mr-2" />
-                                ) : (
-                                  <Send className="h-4 w-4 mr-2" />
-                                )}
-                                Send Message
-                              </Button>
-                            </div>
-                          </div>
-                        </DialogContent>
-                      </Dialog>
+                      <Button
+                        size="sm"
+                        className="flex-1 bg-primary-gradient"
+                        onClick={() => {
+                          setSelectedProject(project);
+                          setContactDialogOpen(true);
+                        }}
+                      >
+                        <MessageSquare className="h-3.5 w-3.5 mr-1.5" />
+                        Contact
+                      </Button>
                     )}
                   </div>
                 </Card>
@@ -467,6 +417,41 @@ const InvestorDashboard = () => {
           </div>
         )}
       </main>
+
+      {/* Contact Dialog */}
+      <Dialog open={contactDialogOpen} onOpenChange={setContactDialogOpen}>
+        <DialogContent className="glass-card-strong">
+          <DialogHeader>
+            <DialogTitle className="font-display text-xl">
+              Contact {selectedProject?.founder_name || 'Founder'}
+            </DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4 mt-4">
+            <p className="text-muted-foreground text-sm">
+              Send a message about <span className="font-medium text-foreground">{selectedProject?.title}</span>
+            </p>
+            <Textarea
+              value={contactMessage}
+              onChange={(e) => setContactMessage(e.target.value)}
+              placeholder="Introduce yourself and explain your interest in this project..."
+              rows={4}
+            />
+            <div className="flex gap-3">
+              <Button variant="outline" className="flex-1" onClick={() => setContactDialogOpen(false)}>
+                Cancel
+              </Button>
+              <Button 
+                className="flex-1 bg-primary-gradient" 
+                onClick={handleContactStudent}
+                disabled={sendingMessage || !contactMessage.trim()}
+              >
+                {sendingMessage ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : <Send className="h-4 w-4 mr-2" />}
+                Send Message
+              </Button>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 };

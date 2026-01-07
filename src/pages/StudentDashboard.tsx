@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { useTheme } from 'next-themes';
 import { useAuth } from '@/contexts/AuthContext';
@@ -19,48 +19,25 @@ import { ScrollArea } from '@/components/ui/scroll-area';
 import {
   GraduationCap, Plus, LogOut, Rocket, Users, Eye, MessageSquare,
   ExternalLink, Github, Edit, Trash2, Loader2, FolderOpen, Bell, Settings,
-  User, Lock, BellRing, Palette, Globe, Sun, Moon
+  User, Lock, BellRing, Palette, Globe, Sun, Moon, Check, X
 } from 'lucide-react';
 import logo from '@/assets/logo.png';
-
-interface Project {
-  id: string;
-  title: string;
-  tagline: string;
-  description: string;
-  problem: string;
-  solution: string;
-  tech_stack: string[];
-  category: string;
-  logo_url: string;
-  demo_url: string;
-  github_url: string;
-  funding_goal: number;
-  status: string;
-  created_at: string;
-}
-
-interface ContactRequest {
-  id: string;
-  message: string;
-  status: string;
-  created_at: string;
-  from_user_id: string;
-  profiles: {
-    full_name: string;
-    avatar_url: string;
-  } | null;
-}
+import { 
+  createProject, getProjectsByOwner, updateProject, deleteProject,
+  getContactRequestsForUser, updateContactRequestStatus,
+  DbProject, DbContactRequest
+} from '@/lib/database';
 
 const StudentDashboard = () => {
   const navigate = useNavigate();
   const { theme, setTheme } = useTheme();
   const { user, userRole, signOut, loading: authLoading } = useAuth();
-  const [projects, setProjects] = useState<Project[]>([]);
-  const [contactRequests, setContactRequests] = useState<ContactRequest[]>([]);
-  const [loading, setLoading] = useState(false);
+  const [projects, setProjects] = useState<DbProject[]>([]);
+  const [contactRequests, setContactRequests] = useState<DbContactRequest[]>([]);
+  const [loading, setLoading] = useState(true);
   const [isDialogOpen, setIsDialogOpen] = useState(false);
-  const [editingProject, setEditingProject] = useState<Project | null>(null);
+  const [editingProject, setEditingProject] = useState<DbProject | null>(null);
+  const [submitting, setSubmitting] = useState(false);
 
   // Form state
   const [formData, setFormData] = useState({
@@ -76,50 +53,104 @@ const StudentDashboard = () => {
     funding_goal: '',
   });
 
+  // Load data from database
+  const loadData = useCallback(async () => {
+    if (!user) return;
+    
+    setLoading(true);
+    try {
+      const [projectsData, requestsData] = await Promise.all([
+        getProjectsByOwner(user.id),
+        getContactRequestsForUser(user.id),
+      ]);
+      setProjects(projectsData);
+      setContactRequests(requestsData);
+    } catch (error) {
+      console.error('Error loading data:', error);
+      toast.error('Failed to load data');
+    } finally {
+      setLoading(false);
+    }
+  }, [user]);
+
+  useEffect(() => {
+    if (user && userRole === 'student') {
+      loadData();
+    }
+  }, [user, userRole, loadData]);
+
   // Redirect if not authenticated or not a student
-  if (!authLoading && (!user || userRole !== 'student')) {
-    navigate('/auth');
-    return null;
+  useEffect(() => {
+    if (!authLoading && (!user || userRole !== 'student')) {
+      navigate('/auth');
+    }
+  }, [authLoading, user, userRole, navigate]);
+
+  if (authLoading || !user) {
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        <Loader2 className="h-8 w-8 animate-spin text-primary" />
+      </div>
+    );
   }
 
   const handleSubmitProject = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (!user) return;
     
-    const newProject: Project = {
-      id: Date.now().toString(),
-      title: formData.title,
-      tagline: formData.tagline,
-      description: formData.description,
-      problem: formData.problem,
-      solution: formData.solution,
-      tech_stack: formData.tech_stack.split(',').map(t => t.trim()).filter(Boolean),
-      category: formData.category,
-      logo_url: '',
-      demo_url: formData.demo_url,
-      github_url: formData.github_url,
-      funding_goal: formData.funding_goal ? parseFloat(formData.funding_goal) : 0,
-      status: 'published',
-      created_at: new Date().toISOString(),
-    };
+    setSubmitting(true);
+    try {
+      const projectData = {
+        clerk_id: user.id,
+        title: formData.title,
+        tagline: formData.tagline || undefined,
+        description: formData.description || undefined,
+        problem: formData.problem || undefined,
+        solution: formData.solution || undefined,
+        tech_stack: formData.tech_stack ? formData.tech_stack.split(',').map(t => t.trim()).filter(Boolean) : undefined,
+        category: formData.category || undefined,
+        demo_url: formData.demo_url || undefined,
+        github_url: formData.github_url || undefined,
+        funding_goal: formData.funding_goal ? parseFloat(formData.funding_goal) : undefined,
+        founder_name: user.fullName || user.firstName || 'Anonymous',
+        founder_avatar: user.imageUrl,
+        status: 'published',
+      };
 
-    if (editingProject) {
-      setProjects(projects.map(p => p.id === editingProject.id ? { ...newProject, id: editingProject.id } : p));
-      toast.success('Project updated!');
-    } else {
-      setProjects([newProject, ...projects]);
-      toast.success('Project created!');
+      if (editingProject) {
+        const updated = await updateProject(editingProject.id, projectData);
+        setProjects(projects.map(p => p.id === editingProject.id ? updated : p));
+        toast.success('Project updated!');
+      } else {
+        const newProject = await createProject(projectData);
+        setProjects([newProject, ...projects]);
+        toast.success('Project created!');
+      }
+
+      setIsDialogOpen(false);
+      resetForm();
+    } catch (error) {
+      console.error('Error saving project:', error);
+      toast.error('Failed to save project');
+    } finally {
+      setSubmitting(false);
     }
-
-    setIsDialogOpen(false);
-    resetForm();
   };
 
-  const handleDeleteProject = (id: string) => {
-    setProjects(projects.filter(p => p.id !== id));
-    toast.success('Project deleted');
+  const handleDeleteProject = async (id: string) => {
+    if (!user) return;
+    
+    try {
+      await deleteProject(id, user.id);
+      setProjects(projects.filter(p => p.id !== id));
+      toast.success('Project deleted');
+    } catch (error) {
+      console.error('Error deleting project:', error);
+      toast.error('Failed to delete project');
+    }
   };
 
-  const handleEditProject = (project: Project) => {
+  const handleEditProject = (project: DbProject) => {
     setEditingProject(project);
     setFormData({
       title: project.title || '',
@@ -152,20 +183,22 @@ const StudentDashboard = () => {
     });
   };
 
-  const handleRespondToRequest = (requestId: string, status: 'accepted' | 'rejected') => {
-    setContactRequests(contactRequests.map(r => 
-      r.id === requestId ? { ...r, status } : r
-    ));
-    toast.success(`Request ${status}`);
+  const handleRespondToRequest = async (requestId: string, status: 'accepted' | 'declined') => {
+    if (!user) return;
+    
+    try {
+      await updateContactRequestStatus(requestId, status, user.id);
+      setContactRequests(contactRequests.map(r => 
+        r.id === requestId ? { ...r, status } : r
+      ));
+      toast.success(`Request ${status}`);
+    } catch (error) {
+      console.error('Error responding to request:', error);
+      toast.error('Failed to update request');
+    }
   };
 
-  if (authLoading) {
-    return (
-      <div className="min-h-screen flex items-center justify-center">
-        <Loader2 className="h-8 w-8 animate-spin text-primary" />
-      </div>
-    );
-  }
+  const pendingCount = contactRequests.filter(r => r.status === 'pending').length;
 
   return (
     <div className="min-h-screen relative">
@@ -192,9 +225,9 @@ const StudentDashboard = () => {
           <div className="flex items-center gap-3">
             <Button variant="ghost" size="icon" className="relative">
               <Bell className="h-5 w-5" />
-              {contactRequests.filter(r => r.status === 'pending').length > 0 && (
+              {pendingCount > 0 && (
                 <span className="absolute -top-1 -right-1 h-4 w-4 rounded-full bg-primary text-[10px] font-bold flex items-center justify-center">
-                  {contactRequests.filter(r => r.status === 'pending').length}
+                  {pendingCount}
                 </span>
               )}
             </Button>
@@ -223,46 +256,6 @@ const StudentDashboard = () => {
                             Edit Profile
                           </Link>
                         </Button>
-                      </div>
-                    </div>
-
-                    {/* Notifications Section */}
-                    <div className="space-y-4">
-                      <div className="flex items-center gap-2 text-sm font-medium text-muted-foreground">
-                        <BellRing className="h-4 w-4" />
-                        Notifications
-                      </div>
-                      <div className="space-y-3 pl-6">
-                        <div className="flex items-center justify-between">
-                          <span className="text-sm">Email notifications</span>
-                          <Switch defaultChecked />
-                        </div>
-                        <div className="flex items-center justify-between">
-                          <span className="text-sm">Investor inquiries</span>
-                          <Switch defaultChecked />
-                        </div>
-                        <div className="flex items-center justify-between">
-                          <span className="text-sm">Project updates</span>
-                          <Switch defaultChecked />
-                        </div>
-                      </div>
-                    </div>
-
-                    {/* Privacy Section */}
-                    <div className="space-y-4">
-                      <div className="flex items-center gap-2 text-sm font-medium text-muted-foreground">
-                        <Lock className="h-4 w-4" />
-                        Privacy
-                      </div>
-                      <div className="space-y-3 pl-6">
-                        <div className="flex items-center justify-between">
-                          <span className="text-sm">Show profile publicly</span>
-                          <Switch defaultChecked />
-                        </div>
-                        <div className="flex items-center justify-between">
-                          <span className="text-sm">Allow contact requests</span>
-                          <Switch defaultChecked />
-                        </div>
                       </div>
                     </div>
 
@@ -297,9 +290,6 @@ const StudentDashboard = () => {
                           <Link to="/about">About Us</Link>
                         </Button>
                         <Button variant="ghost" className="w-full justify-start text-sm h-8" asChild>
-                          <Link to="/blog">Blog</Link>
-                        </Button>
-                        <Button variant="ghost" className="w-full justify-start text-sm h-8" asChild>
                           <Link to="/explore">Explore Startups</Link>
                         </Button>
                       </div>
@@ -320,7 +310,7 @@ const StudentDashboard = () => {
         {/* Welcome Section */}
         <div className="mb-8 animate-fade-up">
           <h1 className="font-display text-3xl md:text-4xl font-bold mb-2">
-            Welcome back, <span className="gradient-text">Innovator</span>
+            Welcome back, <span className="gradient-text">{user.firstName || 'Innovator'}</span>
           </h1>
           <p className="text-muted-foreground">
             Manage your projects and connect with investors
@@ -332,7 +322,7 @@ const StudentDashboard = () => {
           {[
             { label: 'Projects', value: projects.length, icon: Rocket },
             { label: 'Investor Inquiries', value: contactRequests.length, icon: MessageSquare },
-            { label: 'Profile Views', value: '—', icon: Eye },
+            { label: 'Pending', value: pendingCount, icon: Bell },
           ].map((stat, i) => (
             <Card key={stat.label} className={`glass-card p-6 animate-fade-up stagger-${i + 1}`}>
               <div className="flex items-center justify-between">
@@ -357,15 +347,11 @@ const StudentDashboard = () => {
             <TabsTrigger value="inquiries" className="data-[state=active]:bg-primary data-[state=active]:text-primary-foreground">
               <MessageSquare className="h-4 w-4 mr-2" />
               Inquiries
-              {contactRequests.filter(r => r.status === 'pending').length > 0 && (
+              {pendingCount > 0 && (
                 <span className="ml-2 h-5 w-5 rounded-full bg-primary text-[10px] font-bold flex items-center justify-center text-primary-foreground">
-                  {contactRequests.filter(r => r.status === 'pending').length}
+                  {pendingCount}
                 </span>
               )}
-            </TabsTrigger>
-            <TabsTrigger value="team" className="data-[state=active]:bg-primary data-[state=active]:text-primary-foreground">
-              <Users className="h-4 w-4 mr-2" />
-              Team
             </TabsTrigger>
           </TabsList>
 
@@ -426,7 +412,7 @@ const StudentDashboard = () => {
                         id="tagline"
                         value={formData.tagline}
                         onChange={(e) => setFormData({ ...formData, tagline: e.target.value })}
-                        placeholder="A short catchy tagline"
+                        placeholder="A brief catchy description"
                       />
                     </div>
 
@@ -436,7 +422,7 @@ const StudentDashboard = () => {
                         id="description"
                         value={formData.description}
                         onChange={(e) => setFormData({ ...formData, description: e.target.value })}
-                        placeholder="Describe your project..."
+                        placeholder="Describe your project in detail..."
                         rows={3}
                       />
                     </div>
@@ -465,16 +451,16 @@ const StudentDashboard = () => {
                     </div>
 
                     <div className="space-y-2">
-                      <Label htmlFor="tech_stack">Tech Stack (comma separated)</Label>
+                      <Label htmlFor="tech_stack">Tech Stack</Label>
                       <Input
                         id="tech_stack"
                         value={formData.tech_stack}
                         onChange={(e) => setFormData({ ...formData, tech_stack: e.target.value })}
-                        placeholder="React, Node.js, PostgreSQL"
+                        placeholder="React, Node.js, PostgreSQL (comma-separated)"
                       />
                     </div>
 
-                    <div className="grid grid-cols-2 gap-4">
+                    <div className="grid grid-cols-3 gap-4">
                       <div className="space-y-2">
                         <Label htmlFor="demo_url">Demo URL</Label>
                         <Input
@@ -493,25 +479,25 @@ const StudentDashboard = () => {
                           placeholder="https://github.com/..."
                         />
                       </div>
-                    </div>
-
-                    <div className="space-y-2">
-                      <Label htmlFor="funding_goal">Funding Goal (₹)</Label>
-                      <Input
-                        id="funding_goal"
-                        type="number"
-                        value={formData.funding_goal}
-                        onChange={(e) => setFormData({ ...formData, funding_goal: e.target.value })}
-                        placeholder="100000"
-                      />
+                      <div className="space-y-2">
+                        <Label htmlFor="funding_goal">Funding Goal ($)</Label>
+                        <Input
+                          id="funding_goal"
+                          type="number"
+                          value={formData.funding_goal}
+                          onChange={(e) => setFormData({ ...formData, funding_goal: e.target.value })}
+                          placeholder="50000"
+                        />
+                      </div>
                     </div>
 
                     <div className="flex gap-3 pt-4">
-                      <Button type="button" variant="outline" onClick={() => setIsDialogOpen(false)} className="flex-1">
+                      <Button type="button" variant="outline" className="flex-1" onClick={() => setIsDialogOpen(false)}>
                         Cancel
                       </Button>
-                      <Button type="submit" className="flex-1 bg-primary-gradient">
-                        {editingProject ? 'Update Project' : 'Create Project'}
+                      <Button type="submit" className="flex-1 bg-primary-gradient" disabled={submitting}>
+                        {submitting ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : null}
+                        {editingProject ? 'Update' : 'Create'} Project
                       </Button>
                     </div>
                   </form>
@@ -519,7 +505,11 @@ const StudentDashboard = () => {
               </Dialog>
             </div>
 
-            {projects.length === 0 ? (
+            {loading ? (
+              <div className="flex items-center justify-center py-12">
+                <Loader2 className="h-8 w-8 animate-spin text-primary" />
+              </div>
+            ) : projects.length === 0 ? (
               <Card className="glass-card p-12 text-center">
                 <FolderOpen className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
                 <h3 className="font-display text-lg font-semibold mb-2">No projects yet</h3>
@@ -530,47 +520,50 @@ const StudentDashboard = () => {
                 </Button>
               </Card>
             ) : (
-              <div className="grid gap-4">
-                {projects.map((project) => (
-                  <Card key={project.id} className="glass-card p-6">
-                    <div className="flex items-start justify-between">
-                      <div className="flex-1">
-                        <div className="flex items-center gap-3 mb-2">
-                          <h3 className="font-display text-lg font-semibold">{project.title}</h3>
-                          <Badge variant="secondary">{project.category}</Badge>
-                          <Badge variant={project.status === 'published' ? 'default' : 'outline'}>
-                            {project.status}
-                          </Badge>
+              <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
+                {projects.map((project, i) => (
+                  <Card key={project.id} className={`glass-card overflow-hidden animate-fade-up stagger-${(i % 5) + 1}`}>
+                    <div className="p-6">
+                      <div className="flex items-start justify-between mb-4">
+                        <div className="h-12 w-12 rounded-xl bg-primary-gradient flex items-center justify-center text-primary-foreground font-display font-bold text-lg">
+                          {project.title[0]}
                         </div>
-                        <p className="text-muted-foreground mb-3">{project.tagline}</p>
-                        <div className="flex flex-wrap gap-2">
-                          {project.tech_stack?.map((tech) => (
-                            <Badge key={tech} variant="outline" className="text-xs">
-                              {tech}
-                            </Badge>
+                        <Badge variant={project.status === 'published' ? 'default' : 'secondary'}>
+                          {project.status}
+                        </Badge>
+                      </div>
+                      <h3 className="font-display text-lg font-bold mb-2">{project.title}</h3>
+                      {project.tagline && (
+                        <p className="text-muted-foreground text-sm line-clamp-2 mb-4">{project.tagline}</p>
+                      )}
+                      {project.tech_stack && project.tech_stack.length > 0 && (
+                        <div className="flex flex-wrap gap-1.5 mb-4">
+                          {project.tech_stack.slice(0, 3).map((tech) => (
+                            <Badge key={tech} variant="outline" className="text-xs">{tech}</Badge>
                           ))}
                         </div>
-                      </div>
+                      )}
                       <div className="flex gap-2">
                         {project.demo_url && (
-                          <Button variant="ghost" size="icon" asChild>
+                          <Button variant="outline" size="sm" className="flex-1" asChild>
                             <a href={project.demo_url} target="_blank" rel="noopener noreferrer">
-                              <ExternalLink className="h-4 w-4" />
+                              <ExternalLink className="h-3.5 w-3.5 mr-1.5" />
+                              Demo
                             </a>
                           </Button>
                         )}
                         {project.github_url && (
-                          <Button variant="ghost" size="icon" asChild>
+                          <Button variant="outline" size="icon" className="h-8 w-8" asChild>
                             <a href={project.github_url} target="_blank" rel="noopener noreferrer">
-                              <Github className="h-4 w-4" />
+                              <Github className="h-3.5 w-3.5" />
                             </a>
                           </Button>
                         )}
-                        <Button variant="ghost" size="icon" onClick={() => handleEditProject(project)}>
-                          <Edit className="h-4 w-4" />
+                        <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => handleEditProject(project)}>
+                          <Edit className="h-3.5 w-3.5" />
                         </Button>
-                        <Button variant="ghost" size="icon" onClick={() => handleDeleteProject(project.id)}>
-                          <Trash2 className="h-4 w-4 text-destructive" />
+                        <Button variant="ghost" size="icon" className="h-8 w-8 text-destructive" onClick={() => handleDeleteProject(project.id)}>
+                          <Trash2 className="h-3.5 w-3.5" />
                         </Button>
                       </div>
                     </div>
@@ -582,55 +575,71 @@ const StudentDashboard = () => {
 
           <TabsContent value="inquiries" className="space-y-4">
             <h2 className="font-display text-xl font-semibold">Investor Inquiries</h2>
-            {contactRequests.length === 0 ? (
+            {loading ? (
+              <div className="flex items-center justify-center py-12">
+                <Loader2 className="h-8 w-8 animate-spin text-primary" />
+              </div>
+            ) : contactRequests.length === 0 ? (
               <Card className="glass-card p-12 text-center">
                 <MessageSquare className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
                 <h3 className="font-display text-lg font-semibold mb-2">No inquiries yet</h3>
-                <p className="text-muted-foreground">Investors will appear here when they contact you</p>
+                <p className="text-muted-foreground">
+                  When investors reach out, their messages will appear here
+                </p>
               </Card>
             ) : (
               <div className="space-y-4">
-                {contactRequests.map((request) => (
-                  <Card key={request.id} className="glass-card p-6">
-                    <div className="flex items-start gap-4">
-                      <img
-                        src={request.profiles?.avatar_url || '/placeholder.svg'}
-                        alt={request.profiles?.full_name || 'Investor'}
-                        className="h-12 w-12 rounded-full"
-                      />
-                      <div className="flex-1">
-                        <div className="flex items-center justify-between mb-2">
-                          <h4 className="font-semibold">{request.profiles?.full_name || 'Investor'}</h4>
-                          <Badge variant={request.status === 'pending' ? 'default' : request.status === 'accepted' ? 'secondary' : 'outline'}>
-                            {request.status}
-                          </Badge>
+                {contactRequests.map((request, i) => (
+                  <Card key={request.id} className={`glass-card p-6 animate-fade-up stagger-${(i % 5) + 1}`}>
+                    <div className="flex items-start justify-between">
+                      <div className="flex items-start gap-4">
+                        <img 
+                          src={request.from_user_avatar || '/placeholder.svg'} 
+                          alt={request.from_user_name || 'Investor'} 
+                          className="h-12 w-12 rounded-full object-cover"
+                        />
+                        <div>
+                          <p className="font-semibold">{request.from_user_name || 'Investor'}</p>
+                          <p className="text-sm text-muted-foreground mb-2">
+                            Regarding: {request.project_title || 'Your project'}
+                          </p>
+                          <p className="text-sm">{request.message}</p>
+                          <p className="text-xs text-muted-foreground mt-2">
+                            {new Date(request.created_at).toLocaleDateString()}
+                          </p>
                         </div>
-                        <p className="text-muted-foreground mb-4">{request.message}</p>
-                        {request.status === 'pending' && (
-                          <div className="flex gap-2">
-                            <Button size="sm" onClick={() => handleRespondToRequest(request.id, 'accepted')}>
-                              Accept
-                            </Button>
-                            <Button size="sm" variant="outline" onClick={() => handleRespondToRequest(request.id, 'rejected')}>
-                              Decline
-                            </Button>
-                          </div>
-                        )}
                       </div>
+                      {request.status === 'pending' ? (
+                        <div className="flex gap-2">
+                          <Button 
+                            size="sm" 
+                            variant="outline"
+                            className="border-green-500 text-green-500 hover:bg-green-500/10"
+                            onClick={() => handleRespondToRequest(request.id, 'accepted')}
+                          >
+                            <Check className="h-4 w-4 mr-1" />
+                            Accept
+                          </Button>
+                          <Button 
+                            size="sm" 
+                            variant="outline"
+                            className="border-destructive text-destructive hover:bg-destructive/10"
+                            onClick={() => handleRespondToRequest(request.id, 'declined')}
+                          >
+                            <X className="h-4 w-4 mr-1" />
+                            Decline
+                          </Button>
+                        </div>
+                      ) : (
+                        <Badge variant={request.status === 'accepted' ? 'default' : 'secondary'}>
+                          {request.status}
+                        </Badge>
+                      )}
                     </div>
                   </Card>
                 ))}
               </div>
             )}
-          </TabsContent>
-
-          <TabsContent value="team" className="space-y-4">
-            <h2 className="font-display text-xl font-semibold">Team Management</h2>
-            <Card className="glass-card p-12 text-center">
-              <Users className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
-              <h3 className="font-display text-lg font-semibold mb-2">Coming Soon</h3>
-              <p className="text-muted-foreground">Team management features are under development</p>
-            </Card>
           </TabsContent>
         </Tabs>
       </main>

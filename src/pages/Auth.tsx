@@ -1,13 +1,27 @@
 import { SignIn, SignUp } from "@clerk/clerk-react";
-import { useState } from "react";
-import { Link } from "react-router-dom";
+import { useState, useEffect } from "react";
+import { Link, useNavigate } from "react-router-dom";
 import AnimatedBackground from "@/components/ui/AnimatedBackground";
 import { GraduationCap, TrendingUp } from "lucide-react";
+import { useAuth } from "@/contexts/AuthContext";
 import logo from "@/assets/logo.png";
 
 const Auth = () => {
   const [isSignUp, setIsSignUp] = useState(false);
   const [selectedRole, setSelectedRole] = useState<"student" | "investor" | null>(null);
+  const { isSignedIn, userRole, loading } = useAuth();
+  const navigate = useNavigate();
+
+  // Redirect if already signed in
+  useEffect(() => {
+    if (!loading && isSignedIn && userRole) {
+      if (userRole === "investor") {
+        navigate("/investor-dashboard", { replace: true });
+      } else {
+        navigate("/student-dashboard", { replace: true });
+      }
+    }
+  }, [isSignedIn, userRole, loading, navigate]);
 
   return (
     <div className="min-h-screen flex relative overflow-hidden">
@@ -90,34 +104,43 @@ const Auth = () => {
                   <p className="text-xs text-muted-foreground mt-0.5">Discover startups</p>
                 </button>
               </div>
+              {isSignUp && !selectedRole && (
+                <p className="text-xs text-amber-500 mt-2">Please select a role to continue</p>
+              )}
             </div>
           )}
 
           {/* Clerk SignIn/SignUp Component */}
           <div className="clerk-container">
             {isSignUp ? (
-              <SignUp
-                appearance={{
-                  elements: {
-                    rootBox: "w-full",
-                    card: "bg-transparent shadow-none p-0",
-                    headerTitle: "hidden",
-                    headerSubtitle: "hidden",
-                    socialButtonsBlockButton:
-                      "bg-secondary/30 border-border/60 hover:bg-secondary/50 text-foreground",
-                    formFieldInput:
-                      "bg-secondary/30 border-border/60 text-foreground placeholder:text-muted-foreground",
-                    formButtonPrimary:
-                      "bg-primary text-primary-foreground hover:bg-primary/90",
-                    footerActionLink: "text-primary hover:text-primary/80",
-                    dividerLine: "bg-border",
-                    dividerText: "text-muted-foreground",
-                  },
-                }}
-                signInUrl="/auth"
-                fallbackRedirectUrl="/student-dashboard"
-                unsafeMetadata={{ role: selectedRole }}
-              />
+              selectedRole ? (
+                <SignUp
+                  appearance={{
+                    elements: {
+                      rootBox: "w-full",
+                      card: "bg-transparent shadow-none p-0",
+                      headerTitle: "hidden",
+                      headerSubtitle: "hidden",
+                      socialButtonsBlockButton:
+                        "bg-secondary/30 border-border/60 hover:bg-secondary/50 text-foreground",
+                      formFieldInput:
+                        "bg-secondary/30 border-border/60 text-foreground placeholder:text-muted-foreground",
+                      formButtonPrimary:
+                        "bg-primary text-primary-foreground hover:bg-primary/90",
+                      footerActionLink: "text-primary hover:text-primary/80",
+                      dividerLine: "bg-border",
+                      dividerText: "text-muted-foreground",
+                    },
+                  }}
+                  signInUrl="/auth"
+                  forceRedirectUrl="/auth/callback"
+                  unsafeMetadata={{ role: selectedRole }}
+                />
+              ) : (
+                <div className="glass-card rounded-xl p-6 text-center">
+                  <p className="text-muted-foreground">Select your role above to continue</p>
+                </div>
+              )
             ) : (
               <SignIn
                 appearance={{
@@ -138,7 +161,7 @@ const Auth = () => {
                   },
                 }}
                 signUpUrl="/auth"
-                fallbackRedirectUrl="/student-dashboard"
+                forceRedirectUrl="/auth/callback"
               />
             )}
           </div>
@@ -147,7 +170,10 @@ const Auth = () => {
             {isSignUp ? "Already have an account? " : "Don't have an account? "}
             <button
               type="button"
-              onClick={() => setIsSignUp(!isSignUp)}
+              onClick={() => {
+                setIsSignUp(!isSignUp);
+                setSelectedRole(null);
+              }}
               className="text-foreground font-medium hover:text-primary transition-colors"
             >
               {isSignUp ? "Sign in" : "Sign up"}
