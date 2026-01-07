@@ -4,9 +4,9 @@ import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route } from "react-router-dom";
 import { ThemeProvider } from "next-themes";
+import { ClerkProvider } from "@clerk/clerk-react";
 import { AuthProvider } from "@/contexts/AuthContext";
 
-import Layout from "@/components/layout/Layout";
 import Index from "./pages/Index";
 import Explore from "./pages/Explore";
 import StartupDetail from "./pages/StartupDetail";
@@ -23,38 +23,46 @@ import Blog from "./pages/Blog";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
-const App = () => (
-  <QueryClientProvider client={queryClient}>
-    <ThemeProvider attribute="class" defaultTheme="dark" enableSystem>
-      <AuthProvider>
-        <TooltipProvider>
-          <Toaster />
-          <Sonner />
-          <BrowserRouter>
-            <Routes>
-              <Route path="/" element={<Index />} />
-              <Route path="/explore" element={<Explore />} />
-              <Route path="/startup/:id" element={<StartupDetail />} />
-              <Route path="/submit" element={<Submit />} />
-              <Route path="/profile" element={<Profile />} />
-              <Route path="/featured" element={<Featured />} />
-              <Route path="/categories" element={<Categories />} />
-              <Route path="/categories/:slug" element={<Categories />} />
-              <Route path="/search" element={<Explore />} />
-              <Route path="/auth" element={<Auth />} />
-              <Route path="/auth/callback" element={<AuthCallback />} />
-              <Route path="/student-dashboard" element={<StudentDashboard />} />
-              <Route path="/investor-dashboard" element={<InvestorDashboard />} />
-              <Route path="/about" element={<About />} />
-              <Route path="/blog" element={<Blog />} />
-              <Route path="*" element={<NotFound />} />
-            </Routes>
-          </BrowserRouter>
-        </TooltipProvider>
-      </AuthProvider>
-    </ThemeProvider>
-  </QueryClientProvider>
-);
 
+const CLERK_PUBLISHABLE_KEY = import.meta.env.VITE_CLERK_PUBLISHABLE_KEY;
+
+if (!CLERK_PUBLISHABLE_KEY) {
+  throw new Error("Missing VITE_CLERK_PUBLISHABLE_KEY environment variable");
+}
+
+const App = () => (
+  <ClerkProvider publishableKey={CLERK_PUBLISHABLE_KEY}>
+    <QueryClientProvider client={queryClient}>
+      <ThemeProvider attribute="class" defaultTheme="dark" enableSystem>
+        <AuthProvider>
+          <TooltipProvider>
+            <Toaster />
+            <Sonner />
+            <BrowserRouter>
+              <Routes>
+                <Route path="/" element={<Index />} />
+                <Route path="/explore" element={<Explore />} />
+                <Route path="/startup/:id" element={<StartupDetail />} />
+                <Route path="/submit" element={<Submit />} />
+                <Route path="/profile" element={<Profile />} />
+                <Route path="/featured" element={<Featured />} />
+                <Route path="/categories" element={<Categories />} />
+                <Route path="/categories/:slug" element={<Categories />} />
+                <Route path="/search" element={<Explore />} />
+                <Route path="/auth" element={<Auth />} />
+                <Route path="/auth/callback" element={<AuthCallback />} />
+                <Route path="/student-dashboard" element={<StudentDashboard />} />
+                <Route path="/investor-dashboard" element={<InvestorDashboard />} />
+                <Route path="/about" element={<About />} />
+                <Route path="/blog" element={<Blog />} />
+                <Route path="*" element={<NotFound />} />
+              </Routes>
+            </BrowserRouter>
+          </TooltipProvider>
+        </AuthProvider>
+      </ThemeProvider>
+    </QueryClientProvider>
+  </ClerkProvider>
+);
 
 export default App;

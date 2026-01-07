@@ -57,6 +57,7 @@ const StudentDashboard = () => {
   const navigate = useNavigate();
   const { theme, setTheme } = useTheme();
   const { user, userRole, signOut, loading: authLoading } = useAuth();
+  const userId = user?.id;
   const [projects, setProjects] = useState<Project[]>([]);
   const [contactRequests, setContactRequests] = useState<ContactRequest[]>([]);
   const [loading, setLoading] = useState(true);
@@ -78,23 +79,23 @@ const StudentDashboard = () => {
   });
 
   useEffect(() => {
-    if (!authLoading && (!user || userRole !== 'student')) {
+    if (!authLoading && (!userId || userRole !== 'student')) {
       navigate('/auth');
     }
-  }, [user, userRole, authLoading, navigate]);
+  }, [userId, userRole, authLoading, navigate]);
 
   useEffect(() => {
-    if (user) {
+    if (userId) {
       fetchProjects();
       fetchContactRequests();
     }
-  }, [user]);
+  }, [userId]);
 
   const fetchProjects = async () => {
     const { data, error } = await supabase
       .from('projects')
       .select('*')
-      .eq('owner_id', user?.id)
+      .eq('owner_id', userId)
       .order('created_at', { ascending: false });
 
     if (!error && data) {
@@ -107,7 +108,7 @@ const StudentDashboard = () => {
     const { data, error } = await supabase
       .from('contact_requests')
       .select('*')
-      .eq('to_user_id', user?.id)
+      .eq('to_user_id', userId)
       .order('created_at', { ascending: false });
 
     if (!error && data) {
@@ -130,7 +131,7 @@ const StudentDashboard = () => {
     e.preventDefault();
     
     const projectData = {
-      owner_id: user?.id,
+      owner_id: userId,
       title: formData.title,
       tagline: formData.tagline,
       description: formData.description,

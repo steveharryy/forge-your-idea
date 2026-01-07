@@ -9,7 +9,7 @@ import logo from "@/assets/logo.png";
 const Navbar = () => {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const location = useLocation();
-  const { user, userRole } = useAuth();
+  const { isSignedIn, userRole } = useAuth();
 
   const navLinks = [
     { href: "/explore", label: "Explore" },
@@ -21,7 +21,7 @@ const Navbar = () => {
 
 
 const getDashboardLink = () => {
-  if (!user) return "/auth";
+  if (!isSignedIn) return "/auth";
 
   if (userRole === "investor") {
     return "/investor-dashboard";
@@ -72,7 +72,7 @@ const getDashboardLink = () => {
 
         {/* Desktop Actions */}
         <div className="hidden md:flex items-center gap-2">
-          {user ? (
+          {isSignedIn ? (
             <Button 
               variant="default" 
               size="sm" 
@@ -134,7 +134,7 @@ const getDashboardLink = () => {
               </Link>
             ))}
             <hr className="my-3 border-border/50" />
-            {user ? (
+            {isSignedIn ? (
               <Link
                 to={getDashboardLink()}
                 onClick={() => setIsMenuOpen(false)}
