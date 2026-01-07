@@ -1,6 +1,6 @@
 import { SignIn, SignUp } from "@clerk/clerk-react";
 import { useState, useEffect } from "react";
-import { Link, useNavigate } from "react-router-dom";
+import { Link, useLocation, useNavigate } from "react-router-dom";
 import { motion } from "framer-motion";
 import AnimatedBackground from "@/components/ui/AnimatedBackground";
 import { GraduationCap, TrendingUp, Sparkles, ArrowRight } from "lucide-react";
@@ -8,10 +8,20 @@ import { useAuth } from "@/contexts/AuthContext";
 import logo from "@/assets/logo.png";
 
 const Auth = () => {
+  const location = useLocation();
+  const navigate = useNavigate();
+
   const [isSignUp, setIsSignUp] = useState(false);
   const [selectedRole, setSelectedRole] = useState<"student" | "investor" | null>(null);
   const { isSignedIn, userRole, loading } = useAuth();
-  const navigate = useNavigate();
+
+  // Keep UI in sync with URL so Clerk's built-in "Sign up" / "Sign in" links work.
+  useEffect(() => {
+    const mode = new URLSearchParams(location.search).get("mode");
+    const nextIsSignUp = mode === "sign-up";
+    setIsSignUp(nextIsSignUp);
+    setSelectedRole(null);
+  }, [location.search]);
 
   // Redirect if already signed in
   useEffect(() => {
@@ -193,7 +203,7 @@ const Auth = () => {
                       otpCodeFieldInput: "glass-card !rounded-xl border-border/60",
                     },
                   }}
-                  signInUrl="/auth"
+                  signInUrl="/auth?mode=sign-in"
                   forceRedirectUrl="/auth/callback"
                   unsafeMetadata={{ role: selectedRole }}
                 />
@@ -230,7 +240,7 @@ const Auth = () => {
                     otpCodeFieldInput: "glass-card !rounded-xl border-border/60",
                   },
                 }}
-                signUpUrl="/auth"
+                signUpUrl="/auth?mode=sign-up"
                 forceRedirectUrl="/auth/callback"
               />
             )}
@@ -247,8 +257,8 @@ const Auth = () => {
               <button
                 type="button"
                 onClick={() => {
-                  setIsSignUp(!isSignUp);
-                  setSelectedRole(null);
+                  const nextIsSignUp = !isSignUp;
+                  navigate(nextIsSignUp ? "/auth?mode=sign-up" : "/auth?mode=sign-in", { replace: true });
                 }}
                 className="text-foreground font-semibold hover:text-primary transition-colors inline-flex items-center gap-1"
               >
