@@ -1,58 +1,101 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "@/contexts/AuthContext";
 import { useUser } from "@clerk/clerk-react";
 import { Loader2 } from "lucide-react";
+import { supabase } from "@/integrations/supabase/client";
 
 const AuthCallback = () => {
   const navigate = useNavigate();
   const { isSignedIn, loading, syncUser } = useAuth();
   const { user, isLoaded } = useUser();
-  const [attempts, setAttempts] = useState(0);
+  const [status, setStatus] = useState("Loading...");
+  const syncAttempted = useRef(false);
 
   useEffect(() => {
-    // Wait for Clerk to load
-    if (!isLoaded || loading) return;
-
-    // Not signed in - redirect to auth
-    if (!isSignedIn || !user) {
-      navigate("/auth", { replace: true });
-      return;
-    }
-
-    // Read role from Clerk public metadata (source of truth)
-    const clerkRole = (user.publicMetadata?.role as "student" | "investor") || null;
-
-    if (clerkRole) {
-      // Sync the role to context and database
-      syncUser(clerkRole);
-      
-      // Route to correct dashboard based on role
-      if (clerkRole === "investor") {
-        navigate("/investor-dashboard", { replace: true });
-      } else {
-        navigate("/student-dashboard", { replace: true });
+    const handleCallback = async () => {
+      // Wait for Clerk to fully load
+      if (!isLoaded || loading) {
+        setStatus("Loading authentication...");
+        return;
       }
-    } else {
-      // Role not found yet - might be a timing issue with Clerk metadata
-      // Wait a bit and retry (up to 5 attempts)
-      if (attempts < 5) {
-        const timeout = setTimeout(() => {
-          setAttempts(prev => prev + 1);
-        }, 500);
-        return () => clearTimeout(timeout);
+
+      // Not signed in - redirect to auth
+      if (!isSignedIn || !user) {
+        console.log("AuthCallback: Not signed in, redirecting to /auth");
+        navigate("/auth", { replace: true });
+        return;
+      }
+
+      // Prevent duplicate sync attempts
+      if (syncAttempted.current) {
+        return;
+      }
+      syncAttempted.current = true;
+
+      console.log("AuthCallback: User loaded", { 
+        userId: user.id,
+        publicMetadata: user.publicMetadata,
+        unsafeMetadata: user.unsafeMetadata 
+      });
+
+      // Check publicMetadata first (already synced)
+      let role = user.publicMetadata?.role as "student" | "investor" | undefined;
+
+      if (role) {
+        console.log("AuthCallback: Role found in publicMetadata:", role);
       } else {
-        // After 5 attempts, redirect to auth to select role
+        // Role not in publicMetadata, check unsafeMetadata and sync
+        const unsafeRole = user.unsafeMetadata?.role as "student" | "investor" | undefined;
+        
+        if (unsafeRole) {
+          console.log("AuthCallback: Role found in unsafeMetadata, syncing to publicMetadata:", unsafeRole);
+          setStatus("Setting up your account...");
+
+          try {
+            // Call edge function to sync role to publicMetadata
+            const { data, error } = await supabase.functions.invoke("sync-clerk-role", {
+              body: { userId: user.id, role: unsafeRole },
+            });
+
+            if (error) {
+              console.error("AuthCallback: Error syncing role:", error);
+            } else {
+              console.log("AuthCallback: Role synced successfully:", data);
+              role = unsafeRole;
+            }
+          } catch (err) {
+            console.error("AuthCallback: Exception syncing role:", err);
+          }
+        }
+      }
+
+      if (role) {
+        // Sync to AuthContext and database
+        await syncUser(role);
+        
+        // Redirect to appropriate dashboard
+        console.log("AuthCallback: Redirecting to dashboard for role:", role);
+        if (role === "investor") {
+          navigate("/investor-dashboard", { replace: true });
+        } else {
+          navigate("/student-dashboard", { replace: true });
+        }
+      } else {
+        // No role found anywhere - redirect to signup to select role
+        console.log("AuthCallback: No role found, redirecting to signup");
         navigate("/auth?mode=sign-up", { replace: true });
       }
-    }
-  }, [isSignedIn, loading, navigate, user, isLoaded, syncUser, attempts]);
+    };
+
+    handleCallback();
+  }, [isSignedIn, loading, navigate, user, isLoaded, syncUser]);
 
   return (
     <div className="min-h-screen flex items-center justify-center bg-background">
       <div className="flex flex-col items-center gap-4">
         <Loader2 className="h-8 w-8 animate-spin text-primary" />
-        <p className="text-muted-foreground">Setting up your account...</p>
+        <p className="text-muted-foreground">{status}</p>
       </div>
     </div>
   );
