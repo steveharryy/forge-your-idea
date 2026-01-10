@@ -76,7 +76,26 @@ const AuthCallback = () => {
                 role = unsafeRole;
               } else {
                 console.log("AuthCallback: Role synced successfully:", data);
-                role = unsafeRole;
+
+                // CRITICAL: Reload Clerk user to get updated publicMetadata
+                try {
+                  await user.reload();
+                  console.log("AuthCallback: User reloaded, checking publicMetadata:", user.publicMetadata);
+
+                  // Now check if role is in publicMetadata
+                  const syncedRole = user.publicMetadata?.role as "student" | "investor" | undefined;
+                  if (syncedRole) {
+                    role = syncedRole;
+                    console.log("AuthCallback: Role confirmed in publicMetadata after reload:", role);
+                  } else {
+                    // Fallback if reload didn't work
+                    role = unsafeRole;
+                    console.warn("AuthCallback: Role not in publicMetadata after reload, using unsafeMetadata");
+                  }
+                } catch (reloadError) {
+                  console.error("AuthCallback: Error reloading user:", reloadError);
+                  role = unsafeRole;
+                }
               }
             }
           } catch (err) {
