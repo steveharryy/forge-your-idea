@@ -57,11 +57,10 @@ const App = () =>
                   <Route path="/categories" element={<Categories />} />
                   <Route path="/categories/:slug" element={<Categories />} />
                   <Route path="/search" element={<Explore />} />
-                  <Route path="/auth" element={<Auth />} />
+                  <Route path="/auth/*" element={<Auth />} />
 
-                  {/* Clerk OAuth / SSO callbacks */}
+                  {/* Clerk OAuth / SSO callback */}
                   <Route path="/auth/callback/*" element={<AuthCallback />} />
-                  <Route path="/auth/sso-callback/*" element={<AuthCallback />} />
 
                   <Route path="/student-dashboard" element={<StudentDashboard />} />
                   <Route path="/investor-dashboard" element={<InvestorDashboard />} />

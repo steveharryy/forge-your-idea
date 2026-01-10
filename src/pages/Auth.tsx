@@ -4,7 +4,6 @@ import { Link, useLocation, useNavigate } from "react-router-dom";
 import { motion } from "framer-motion";
 import AnimatedBackground from "@/components/ui/AnimatedBackground";
 import { GraduationCap, TrendingUp, Sparkles, ArrowRight } from "lucide-react";
-import { useAuth } from "@/contexts/AuthContext";
 import logo from "@/assets/logo.png";
 
 const Auth = () => {
@@ -13,7 +12,6 @@ const Auth = () => {
 
   const [isSignUp, setIsSignUp] = useState(false);
   const [selectedRole, setSelectedRole] = useState<"student" | "investor" | null>(null);
-  const { isSignedIn, userRole, loading } = useAuth();
 
   // Keep UI in sync with URL so Clerk's built-in "Sign up" / "Sign in" links work.
   useEffect(() => {
@@ -22,17 +20,6 @@ const Auth = () => {
     setIsSignUp(nextIsSignUp);
     setSelectedRole(null);
   }, [location.search]);
-
-  // Redirect if already signed in
-  useEffect(() => {
-    if (!loading && isSignedIn && userRole) {
-      if (userRole === "investor") {
-        navigate("/investor-dashboard", { replace: true });
-      } else {
-        navigate("/student-dashboard", { replace: true });
-      }
-    }
-  }, [isSignedIn, userRole, loading, navigate]);
 
   return (
     <div className="min-h-screen flex relative overflow-hidden">
@@ -182,6 +169,7 @@ const Auth = () => {
                 <SignUp
                   routing="path"
                   path="/auth"
+                  afterSignUpUrl="/auth/callback"
                   appearance={{
                     elements: {
                       rootBox: "w-full",
@@ -206,7 +194,6 @@ const Auth = () => {
                     },
                   }}
                   signInUrl="/auth?mode=sign-in"
-                  forceRedirectUrl="/auth/callback"
                   unsafeMetadata={{ role: selectedRole }}
                 />
               ) : (
@@ -221,6 +208,7 @@ const Auth = () => {
               <SignIn
                 routing="path"
                 path="/auth"
+                afterSignInUrl="/auth/callback"
                 appearance={{
                   elements: {
                     rootBox: "w-full",
@@ -245,7 +233,6 @@ const Auth = () => {
                   },
                 }}
                 signUpUrl="/auth?mode=sign-up"
-                forceRedirectUrl="/auth/callback"
               />
             )}
           </motion.div>
