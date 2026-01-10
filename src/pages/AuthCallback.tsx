@@ -3,7 +3,6 @@ import { useNavigate } from "react-router-dom";
 import { useAuth } from "@/contexts/AuthContext";
 import { useUser } from "@clerk/clerk-react";
 import { Loader2 } from "lucide-react";
-import { supabase } from "@/integrations/supabase/client";
 
 const AuthCallback = () => {
   const navigate = useNavigate();
@@ -53,19 +52,37 @@ const AuthCallback = () => {
           setStatus("Setting up your account...");
 
           try {
-            // Call edge function to sync role to publicMetadata
-            const { data, error } = await supabase.functions.invoke("sync-clerk-role", {
-              body: { userId: user.id, role: unsafeRole },
-            });
+            // IMPORTANT: don't import the backend client at module scope.
+            // If Vercel env vars aren't set, it can crash the whole app on load.
+            const hasBackendEnv =
+              Boolean(import.meta.env.VITE_SUPABASE_URL) &&
+              Boolean(import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY);
 
-            if (error) {
-              console.error("AuthCallback: Error syncing role:", error);
-            } else {
-              console.log("AuthCallback: Role synced successfully:", data);
+            if (!hasBackendEnv) {
+              console.warn(
+                "AuthCallback: Backend env missing; cannot sync role to publicMetadata on this deployment.",
+              );
+              // Still allow the user through based on the selected role.
               role = unsafeRole;
+            } else {
+              const { supabase } = await import("@/integrations/supabase/client");
+              const { data, error } = await supabase.functions.invoke("sync-clerk-role", {
+                body: { userId: user.id, role: unsafeRole },
+              });
+
+              if (error) {
+                console.error("AuthCallback: Error syncing role:", error);
+                // Fallback: proceed with role so user isn't bounced back to /auth
+                role = unsafeRole;
+              } else {
+                console.log("AuthCallback: Role synced successfully:", data);
+                role = unsafeRole;
+              }
             }
           } catch (err) {
             console.error("AuthCallback: Exception syncing role:", err);
+            // Fallback: proceed with role so user isn't bounced back to /auth
+            role = unsafeRole;
           }
         }
       }
