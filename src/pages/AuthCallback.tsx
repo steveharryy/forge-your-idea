@@ -6,7 +6,7 @@ import { Loader2 } from "lucide-react";
 
 const AuthCallback = () => {
   const navigate = useNavigate();
-  const { isSignedIn, userRole, loading, syncUser } = useAuth();
+  const { isSignedIn, loading, syncUser } = useAuth();
   const { user, isLoaded } = useUser();
   const [attempts, setAttempts] = useState(0);
 
@@ -20,10 +20,8 @@ const AuthCallback = () => {
       return;
     }
 
-    // Check for role in Clerk metadata directly (freshest source after signup)
-    const clerkRole = (user.unsafeMetadata?.role as "student" | "investor") || 
-                      (user.publicMetadata?.role as "student" | "investor") ||
-                      userRole;
+    // Read role from Clerk public metadata (source of truth)
+    const clerkRole = (user.publicMetadata?.role as "student" | "investor") || null;
 
     if (clerkRole) {
       // Sync the role to context and database
@@ -48,7 +46,7 @@ const AuthCallback = () => {
         navigate("/auth?mode=sign-up", { replace: true });
       }
     }
-  }, [isSignedIn, userRole, loading, navigate, user, isLoaded, syncUser, attempts]);
+  }, [isSignedIn, loading, navigate, user, isLoaded, syncUser, attempts]);
 
   return (
     <div className="min-h-screen flex items-center justify-center bg-background">
