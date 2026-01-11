@@ -58,78 +58,23 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     }
   }, [user]);
 
-  // On mount/user change: read role from publicMetadata (primary) or unsafeMetadata (fallback)
+  // On mount/user change: role comes ONLY from Clerk publicMetadata.role
   useEffect(() => {
-    const fetchRole = async () => {
-      if (!isLoaded) {
-        return;
-      }
+    if (!isLoaded) return;
 
-      if (!isSignedIn || !user) {
-        setUserRole(null);
-        setRoleLoading(false);
-        return;
-      }
-
-      console.log("AuthContext: Checking metadata for role", {
-        publicMetadata: user.publicMetadata,
-        unsafeMetadata: user.unsafeMetadata
-      });
-
-      // Check publicMetadata first (source of truth after sync)
-      let role = user.publicMetadata?.role as UserRole;
-
-      // Fallback to unsafeMetadata (set during signup, before sync completes)
-      if (!role) {
-        role = user.unsafeMetadata?.role as UserRole;
-        if (role) {
-          console.log("AuthContext: Using role from unsafeMetadata:", role);
-        }
-      } else {
-        console.log("AuthContext: Found role in publicMetadata:", role);
-      }
-
-      if (role) {
-        setUserRole(role);
-        
-        // Optionally sync to database
-        const apiUrl = import.meta.env.VITE_API_URL;
-        if (apiUrl) {
-          try {
-            const { createOrUpdateUser } = await import("@/lib/database");
-            await createOrUpdateUser({
-              clerk_id: user.id,
-              email: user.primaryEmailAddress?.emailAddress || "",
-              full_name: user.fullName || user.firstName || "",
-              role: role,
-              avatar_url: user.imageUrl,
-            });
-          } catch (dbError) {
-            console.error("AuthContext: Error syncing to database:", dbError);
-          }
-        }
-      } else {
-        console.log("AuthContext: No role in metadata, checking database");
-        // Fallback: try to get from database
-        const apiUrl = import.meta.env.VITE_API_URL;
-        if (apiUrl) {
-          try {
-            const { getUserRole } = await import("@/lib/database");
-            const dbRole = await getUserRole(user.id);
-            if (dbRole) {
-              console.log("AuthContext: Found role in database:", dbRole);
-              setUserRole(dbRole);
-            }
-          } catch (dbError) {
-            console.error("AuthContext: Error fetching from database:", dbError);
-          }
-        }
-      }
-
+    if (!isSignedIn || !user) {
+      setUserRole(null);
       setRoleLoading(false);
-    };
+      return;
+    }
 
-    fetchRole();
+    setRoleLoading(true);
+
+    const role = user.publicMetadata?.role as UserRole;
+    console.log("AuthContext: publicMetadata role:", role);
+
+    setUserRole(role ?? null);
+    setRoleLoading(false);
   }, [isLoaded, isSignedIn, user]);
 
   const signOut = async () => {
