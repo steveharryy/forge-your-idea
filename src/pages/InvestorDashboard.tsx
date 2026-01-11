@@ -143,14 +143,21 @@ const InvestorDashboard = () => {
     }
   }, [user, userRole, loadData]);
 
-  // Redirect if not authenticated or not an investor
+  // Redirect if not authenticated or wrong role (but only after auth fully loaded)
   useEffect(() => {
-    if (!authLoading && (!user || userRole !== 'investor')) {
-      navigate('/auth');
+    if (!authLoading) {
+      if (!user) {
+        console.log("InvestorDashboard: No user, redirecting to auth");
+        navigate('/auth', { replace: true });
+      } else if (userRole && userRole !== 'investor') {
+        console.log("InvestorDashboard: User is", userRole, "not investor, redirecting");
+        navigate('/student-dashboard', { replace: true });
+      }
     }
   }, [authLoading, user, userRole, navigate]);
 
-  if (authLoading || !user) {
+  // Show loading while auth is loading OR while we don't have a confirmed investor role
+  if (authLoading || !user || (userRole !== 'investor' && !userRole)) {
     return (
       <div className="min-h-screen flex items-center justify-center">
         <Loader2 className="h-8 w-8 animate-spin text-warning" />

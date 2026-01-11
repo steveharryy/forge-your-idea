@@ -6,7 +6,7 @@ import { Loader2 } from "lucide-react";
 
 const AuthCallback = () => {
   const navigate = useNavigate();
-  const { isSignedIn, loading, syncUser } = useAuth();
+  const { syncUser } = useAuth();
   const { user, isLoaded } = useUser();
   const [status, setStatus] = useState("Loading...");
   const syncAttempted = useRef(false);
@@ -14,14 +14,14 @@ const AuthCallback = () => {
   useEffect(() => {
     const handleCallback = async () => {
       // Wait for Clerk to fully load
-      if (!isLoaded || loading) {
+      if (!isLoaded) {
         setStatus("Loading authentication...");
         return;
       }
 
       // Not signed in - redirect to auth
-      if (!isSignedIn || !user) {
-        console.log("AuthCallback: Not signed in, redirecting to /auth");
+      if (!user) {
+        console.log("AuthCallback: No user, redirecting to /auth");
         navigate("/auth", { replace: true });
         return;
       }
@@ -32,85 +32,57 @@ const AuthCallback = () => {
       }
       syncAttempted.current = true;
 
-      console.log("AuthCallback: User loaded", { 
+      console.log("AuthCallback: User loaded", {
         userId: user.id,
         publicMetadata: user.publicMetadata,
-        unsafeMetadata: user.unsafeMetadata 
+        unsafeMetadata: user.unsafeMetadata,
       });
 
-      // Check publicMetadata first (already synced)
+      // Step 1: Check if role already exists in publicMetadata
       let role = user.publicMetadata?.role as "student" | "investor" | undefined;
 
       if (role) {
         console.log("AuthCallback: Role found in publicMetadata:", role);
       } else {
-        // Role not in publicMetadata, check unsafeMetadata and sync
+        // Step 2: Role not in publicMetadata - check unsafeMetadata (set during signup)
         const unsafeRole = user.unsafeMetadata?.role as "student" | "investor" | undefined;
-        
+
         if (unsafeRole) {
           console.log("AuthCallback: Role found in unsafeMetadata, syncing to publicMetadata:", unsafeRole);
           setStatus("Setting up your account...");
 
-          try {
-            // IMPORTANT: don't import the backend client at module scope.
-            // If Vercel env vars aren't set, it can crash the whole app on load.
-            const hasBackendEnv =
-              Boolean(import.meta.env.VITE_SUPABASE_URL) &&
-              Boolean(import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY);
-
-            if (!hasBackendEnv) {
-              console.warn(
-                "AuthCallback: Backend env missing; cannot sync role to publicMetadata on this deployment.",
-              );
-              // Still allow the user through based on the selected role.
-              role = unsafeRole;
-            } else {
-              const { supabase } = await import("@/integrations/supabase/client");
-              const { data, error } = await supabase.functions.invoke("sync-clerk-role", {
-                body: { userId: user.id, role: unsafeRole },
-              });
-
-              if (error) {
-                console.error("AuthCallback: Error syncing role:", error);
-                // Fallback: proceed with role so user isn't bounced back to /auth
+          // Call edge function to sync role to publicMetadata
+          const synced = await syncRoleToPublicMetadata(user.id, unsafeRole);
+          
+          if (synced) {
+            // Reload user to get updated publicMetadata
+            try {
+              await user.reload();
+              console.log("AuthCallback: User reloaded, publicMetadata:", user.publicMetadata);
+              role = user.publicMetadata?.role as "student" | "investor" | undefined;
+              
+              if (!role) {
+                // Fallback to unsafeRole if reload didn't work
+                console.warn("AuthCallback: Role not in publicMetadata after reload, using unsafeRole");
                 role = unsafeRole;
-              } else {
-                console.log("AuthCallback: Role synced successfully:", data);
-
-                // CRITICAL: Reload Clerk user to get updated publicMetadata
-                try {
-                  await user.reload();
-                  console.log("AuthCallback: User reloaded, checking publicMetadata:", user.publicMetadata);
-
-                  // Now check if role is in publicMetadata
-                  const syncedRole = user.publicMetadata?.role as "student" | "investor" | undefined;
-                  if (syncedRole) {
-                    role = syncedRole;
-                    console.log("AuthCallback: Role confirmed in publicMetadata after reload:", role);
-                  } else {
-                    // Fallback if reload didn't work
-                    role = unsafeRole;
-                    console.warn("AuthCallback: Role not in publicMetadata after reload, using unsafeMetadata");
-                  }
-                } catch (reloadError) {
-                  console.error("AuthCallback: Error reloading user:", reloadError);
-                  role = unsafeRole;
-                }
               }
+            } catch (reloadError) {
+              console.error("AuthCallback: Error reloading user:", reloadError);
+              role = unsafeRole;
             }
-          } catch (err) {
-            console.error("AuthCallback: Exception syncing role:", err);
-            // Fallback: proceed with role so user isn't bounced back to /auth
+          } else {
+            // Edge function failed but we can still proceed with unsafeRole
+            console.warn("AuthCallback: Edge function failed, proceeding with unsafeRole");
             role = unsafeRole;
           }
         }
       }
 
+      // Step 3: Redirect based on role
       if (role) {
         // Sync to AuthContext and database
         await syncUser(role);
-        
-        // Redirect to appropriate dashboard
+
         console.log("AuthCallback: Redirecting to dashboard for role:", role);
         if (role === "investor") {
           navigate("/investor-dashboard", { replace: true });
@@ -118,14 +90,14 @@ const AuthCallback = () => {
           navigate("/student-dashboard", { replace: true });
         }
       } else {
-        // No role found anywhere - redirect to signup to select role
+        // No role found - new signup needs to select role
         console.log("AuthCallback: No role found, redirecting to signup");
         navigate("/auth?mode=sign-up", { replace: true });
       }
     };
 
     handleCallback();
-  }, [isSignedIn, loading, navigate, user, isLoaded, syncUser]);
+  }, [isLoaded, navigate, user, syncUser]);
 
   return (
     <div className="min-h-screen flex items-center justify-center bg-background">
@@ -136,5 +108,42 @@ const AuthCallback = () => {
     </div>
   );
 };
+
+/**
+ * Calls the sync-clerk-role edge function to persist role to Clerk publicMetadata
+ */
+async function syncRoleToPublicMetadata(
+  userId: string,
+  role: "student" | "investor"
+): Promise<boolean> {
+  // Check if Supabase is configured
+  const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
+  const supabaseKey = import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY;
+
+  if (!supabaseUrl || !supabaseKey) {
+    console.warn("AuthCallback: Supabase env vars missing, cannot sync role to publicMetadata");
+    return false;
+  }
+
+  try {
+    // Dynamically import supabase client
+    const { supabase } = await import("@/integrations/supabase/client");
+
+    const { data, error } = await supabase.functions.invoke("sync-clerk-role", {
+      body: { userId, role },
+    });
+
+    if (error) {
+      console.error("AuthCallback: Edge function error:", error);
+      return false;
+    }
+
+    console.log("AuthCallback: Role synced to publicMetadata:", data);
+    return true;
+  } catch (err) {
+    console.error("AuthCallback: Exception calling edge function:", err);
+    return false;
+  }
+}
 
 export default AuthCallback;
