@@ -58,7 +58,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     }
   }, [user]);
 
-  // On mount/user change: read role ONLY from publicMetadata
+  // On mount/user change: read role from publicMetadata (primary) or unsafeMetadata (fallback)
   useEffect(() => {
     const fetchRole = async () => {
       if (!isLoaded) {
@@ -71,14 +71,26 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         return;
       }
 
-      console.log("AuthContext: Checking publicMetadata for role", user.publicMetadata);
+      console.log("AuthContext: Checking metadata for role", {
+        publicMetadata: user.publicMetadata,
+        unsafeMetadata: user.unsafeMetadata
+      });
 
-      // ONLY read from publicMetadata - this is the source of truth
-      const clerkRole = user.publicMetadata?.role as UserRole;
+      // Check publicMetadata first (source of truth after sync)
+      let role = user.publicMetadata?.role as UserRole;
 
-      if (clerkRole) {
-        console.log("AuthContext: Found role in publicMetadata:", clerkRole);
-        setUserRole(clerkRole);
+      // Fallback to unsafeMetadata (set during signup, before sync completes)
+      if (!role) {
+        role = user.unsafeMetadata?.role as UserRole;
+        if (role) {
+          console.log("AuthContext: Using role from unsafeMetadata:", role);
+        }
+      } else {
+        console.log("AuthContext: Found role in publicMetadata:", role);
+      }
+
+      if (role) {
+        setUserRole(role);
         
         // Optionally sync to database
         const apiUrl = import.meta.env.VITE_API_URL;
@@ -89,7 +101,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
               clerk_id: user.id,
               email: user.primaryEmailAddress?.emailAddress || "",
               full_name: user.fullName || user.firstName || "",
-              role: clerkRole,
+              role: role,
               avatar_url: user.imageUrl,
             });
           } catch (dbError) {
@@ -97,7 +109,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
           }
         }
       } else {
-        console.log("AuthContext: No role in publicMetadata, checking database");
+        console.log("AuthContext: No role in metadata, checking database");
         // Fallback: try to get from database
         const apiUrl = import.meta.env.VITE_API_URL;
         if (apiUrl) {
