@@ -79,14 +79,21 @@ const StudentDashboard = () => {
     }
   }, [user, userRole, loadData]);
 
-  // Redirect if not authenticated or not a student
+  // Redirect if not authenticated or wrong role (but only after auth fully loaded)
   useEffect(() => {
-    if (!authLoading && (!user || userRole !== 'student')) {
-      navigate('/auth');
+    if (!authLoading) {
+      if (!user) {
+        console.log("StudentDashboard: No user, redirecting to auth");
+        navigate('/auth', { replace: true });
+      } else if (userRole && userRole !== 'student') {
+        console.log("StudentDashboard: User is", userRole, "not student, redirecting");
+        navigate('/investor-dashboard', { replace: true });
+      }
     }
   }, [authLoading, user, userRole, navigate]);
 
-  if (authLoading || !user) {
+  // Show loading while auth is loading OR while we don't have a confirmed student role
+  if (authLoading || !user || (userRole !== 'student' && !userRole)) {
     return (
       <div className="min-h-screen flex items-center justify-center">
         <Loader2 className="h-8 w-8 animate-spin text-primary" />
