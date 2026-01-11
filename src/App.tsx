@@ -6,6 +6,7 @@ import { BrowserRouter, Routes, Route } from "react-router-dom";
 import { ThemeProvider } from "next-themes";
 import { ClerkProvider } from "@clerk/clerk-react";
 import { AuthProvider } from "@/contexts/AuthContext";
+import RoleDebugPanel from "@/components/dev/RoleDebugPanel";
 
 import Index from "./pages/Index";
 import Explore from "./pages/Explore";
@@ -76,6 +77,7 @@ const App = () =>
                   <Route path="/blog" element={<Blog />} />
                   <Route path="*" element={<NotFound />} />
                 </Routes>
+                <RoleDebugPanel />
               </BrowserRouter>
             </TooltipProvider>
           </AuthProvider>
