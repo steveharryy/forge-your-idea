@@ -36,15 +36,21 @@ const AuthCallback = () => {
 
       const publicRole = user.publicMetadata?.role as Role | undefined;
       const unsafeRole = user.unsafeMetadata?.role as Role | undefined;
+      const sessionRoleRaw = sessionStorage.getItem("vs_signup_role") as Role | null;
+      const sessionRole = sessionRoleRaw === "student" || sessionRoleRaw === "investor" ? sessionRoleRaw : undefined;
 
-      console.log("AuthCallback: Roles detected", { publicRole, unsafeRole });
+      console.log("AuthCallback: Roles detected", { publicRole, unsafeRole, sessionRole });
 
       // During sign-up, the chosen role lives in unsafeMetadata initially.
-      // We MUST persist it to publicMetadata via backend (always overwrite).
-      if (unsafeRole) {
+      // In some redirect flows, unsafeMetadata may be missing on the first load;
+      // use sessionStorage as a last-resort source of truth to finalize persistence.
+      const roleToPersist = unsafeRole ?? sessionRole;
+
+      // We MUST persist role to publicMetadata via backend (always overwrite when we have a candidate).
+      if (roleToPersist) {
         setStatus("Finalizing your account...");
 
-        const synced = await persistRoleToClerkPublicMetadata(getToken, unsafeRole);
+        const synced = await persistRoleToClerkPublicMetadata(getToken, roleToPersist);
         if (synced) {
           try {
             await user.reload();
@@ -54,16 +60,23 @@ const AuthCallback = () => {
         }
       }
 
-      // After persistence attempt, prefer reloaded publicMetadata; fallback to unsafeRole.
-      const role = (user.publicMetadata?.role as Role | undefined) ?? unsafeRole;
+      // After persistence attempt, prefer reloaded publicMetadata; fallback to role candidate.
+      const role = (user.publicMetadata?.role as Role | undefined) ?? roleToPersist;
 
       if (!role) {
-        console.log("AuthCallback: No role found, redirecting to sign-up");
+        console.log("AuthCallback: No role found anywhere; redirecting to sign-up");
         navigate("/auth?mode=sign-up", { replace: true });
         return;
       }
 
       await syncUser(role);
+
+      // Clear signup role hint once role is persisted and context is synced.
+      try {
+        sessionStorage.removeItem("vs_signup_role");
+      } catch {
+        // ignore
+      }
 
       console.log("AuthCallback: Redirecting to dashboard for role:", role);
       navigate(role === "investor" ? "/investor-dashboard" : "/student-dashboard", {
