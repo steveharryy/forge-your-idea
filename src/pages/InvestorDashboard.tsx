@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from 'react';
-import { useNavigate, Link } from 'react-router-dom';
+import { Link } from 'react-router-dom';
 import { useTheme } from 'next-themes';
 import { useAuth } from '@/contexts/AuthContext';
 import AnimatedBackground from '@/components/ui/AnimatedBackground';
@@ -27,7 +27,6 @@ import {
 import { getSupabase } from '@/lib/supabaseHelper';
 
 const InvestorDashboard = () => {
-  const navigate = useNavigate();
   const { theme, setTheme } = useTheme();
   const { user, userRole, signOut, loading: authLoading } = useAuth();
   const [projects, setProjects] = useState<DbProject[]>([]);
@@ -143,20 +142,8 @@ const InvestorDashboard = () => {
     }
   }, [user, userRole, loadData]);
 
-  // Redirect if not authenticated or wrong role (but only after auth fully loaded and role determined)
-  useEffect(() => {
-    if (!authLoading && userRole !== null) {
-      if (!user) {
-        console.log("InvestorDashboard: No user, redirecting to auth");
-        navigate('/auth', { replace: true });
-      } else if (userRole !== 'investor') {
-        console.log("InvestorDashboard: User is", userRole, "not investor, redirecting");
-        navigate('/student-dashboard', { replace: true });
-      }
-    }
-  }, [authLoading, user, userRole, navigate]);
-
-  // Show loading until we have a user AND confirmed investor role
+  // Redirect logic is handled centrally in <RequireRole /> (App routes).
+  // Keep a minimal guard here to avoid rendering sensitive UI in edge cases.
   if (authLoading || !user || userRole !== 'investor') {
     return (
       <div className="min-h-screen flex items-center justify-center">
