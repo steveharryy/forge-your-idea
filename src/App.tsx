@@ -7,6 +7,7 @@ import { ThemeProvider } from "next-themes";
 import { ClerkProvider } from "@clerk/clerk-react";
 import { AuthProvider } from "@/contexts/AuthContext";
 import RoleDebugPanel from "@/components/dev/RoleDebugPanel";
+import RequireRole from "@/components/auth/RequireRole";
 
 import Index from "./pages/Index";
 import Explore from "./pages/Explore";
@@ -70,9 +71,24 @@ const App = () =>
 
                   {/* Clerk OAuth / SSO callback */}
                   <Route path="/auth/callback/*" element={<AuthCallback />} />
+                  <Route path="/auth/sso-callback/*" element={<AuthCallback />} />
 
-                  <Route path="/student-dashboard" element={<StudentDashboard />} />
-                  <Route path="/investor-dashboard" element={<InvestorDashboard />} />
+                  <Route
+                    path="/student-dashboard"
+                    element={
+                      <RequireRole role="student">
+                        <StudentDashboard />
+                      </RequireRole>
+                    }
+                  />
+                  <Route
+                    path="/investor-dashboard"
+                    element={
+                      <RequireRole role="investor">
+                        <InvestorDashboard />
+                      </RequireRole>
+                    }
+                  />
                   <Route path="/about" element={<About />} />
                   <Route path="/blog" element={<Blog />} />
                   <Route path="*" element={<NotFound />} />

@@ -6,19 +6,33 @@ import AnimatedBackground from "@/components/ui/AnimatedBackground";
 import { GraduationCap, TrendingUp, Sparkles, ArrowRight } from "lucide-react";
 import logo from "@/assets/logo.png";
 
+const ROLE_STORAGE_KEY = "vs_signup_role";
+
+type Role = "student" | "investor";
+
 const Auth = () => {
   const location = useLocation();
   const navigate = useNavigate();
 
   const [isSignUp, setIsSignUp] = useState(false);
-  const [selectedRole, setSelectedRole] = useState<"student" | "investor" | null>(null);
+  const [selectedRole, setSelectedRole] = useState<Role | null>(() => {
+    const saved = sessionStorage.getItem(ROLE_STORAGE_KEY);
+    return saved === "student" || saved === "investor" ? saved : null;
+  });
 
   // Keep UI in sync with URL so Clerk's built-in "Sign up" / "Sign in" links work.
+  // IMPORTANT: do NOT clear selectedRole on every querystring mutation (Clerk appends params during OAuth/signup).
   useEffect(() => {
     const mode = new URLSearchParams(location.search).get("mode");
     const nextIsSignUp = mode === "sign-up";
+
     setIsSignUp(nextIsSignUp);
-    setSelectedRole(null);
+
+    // Only clear role when leaving sign-up mode.
+    if (!nextIsSignUp) {
+      setSelectedRole(null);
+      sessionStorage.removeItem(ROLE_STORAGE_KEY);
+    }
   }, [location.search]);
 
   return (
@@ -88,7 +102,10 @@ const Auth = () => {
               <div className="grid grid-cols-2 gap-4">
                 <motion.button
                   type="button"
-                  onClick={() => setSelectedRole("student")}
+                  onClick={() => {
+                    setSelectedRole("student");
+                    sessionStorage.setItem(ROLE_STORAGE_KEY, "student");
+                  }}
                   whileHover={{ scale: 1.02 }}
                   whileTap={{ scale: 0.98 }}
                   className={`p-5 rounded-2xl border-2 transition-all duration-300 text-left group relative overflow-hidden ${
@@ -119,7 +136,10 @@ const Auth = () => {
 
                 <motion.button
                   type="button"
-                  onClick={() => setSelectedRole("investor")}
+                  onClick={() => {
+                    setSelectedRole("investor");
+                    sessionStorage.setItem(ROLE_STORAGE_KEY, "investor");
+                  }}
                   whileHover={{ scale: 1.02 }}
                   whileTap={{ scale: 0.98 }}
                   className={`p-5 rounded-2xl border-2 transition-all duration-300 text-left group relative overflow-hidden ${
