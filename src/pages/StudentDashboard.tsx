@@ -23,19 +23,19 @@ import {
 } from 'lucide-react';
 import logo from '@/assets/logo.png';
 import { 
-  createProject, getProjectsByOwner, updateProject, deleteProject,
-  getContactRequestsForUser, updateContactRequestStatus,
-  DbProject, DbContactRequest
-} from '@/lib/database';
+  createProject, getProjectsByClerkUser, updateProject, deleteProject,
+  getContactRequestsForClerkUser, updateContactRequestStatus,
+  Project, ContactRequest
+} from '@/lib/supabase-db';
 
 const StudentDashboard = () => {
   const { theme, setTheme } = useTheme();
   const { user, userRole, signOut, loading: authLoading } = useAuth();
-  const [projects, setProjects] = useState<DbProject[]>([]);
-  const [contactRequests, setContactRequests] = useState<DbContactRequest[]>([]);
+  const [projects, setProjects] = useState<Project[]>([]);
+  const [contactRequests, setContactRequests] = useState<ContactRequest[]>([]);
   const [loading, setLoading] = useState(true);
   const [isDialogOpen, setIsDialogOpen] = useState(false);
-  const [editingProject, setEditingProject] = useState<DbProject | null>(null);
+  const [editingProject, setEditingProject] = useState<Project | null>(null);
   const [submitting, setSubmitting] = useState(false);
 
   // Form state
@@ -59,8 +59,8 @@ const StudentDashboard = () => {
     setLoading(true);
     try {
       const [projectsData, requestsData] = await Promise.all([
-        getProjectsByOwner(user.id),
-        getContactRequestsForUser(user.id),
+        getProjectsByClerkUser(user.id),
+        getContactRequestsForClerkUser(user.id),
       ]);
       setProjects(projectsData);
       setContactRequests(requestsData);
@@ -94,8 +94,8 @@ const StudentDashboard = () => {
     
     setSubmitting(true);
     try {
-      const projectData = {
-        clerk_id: user.id,
+      const projectPayload = {
+        clerkUserId: user.id,
         title: formData.title,
         tagline: formData.tagline || undefined,
         description: formData.description || undefined,
@@ -112,11 +112,12 @@ const StudentDashboard = () => {
       };
 
       if (editingProject) {
-        const updated = await updateProject(editingProject.id, projectData);
+        const { clerkUserId, ...updates } = projectPayload;
+        const updated = await updateProject(editingProject.id, user.id, updates);
         setProjects(projects.map(p => p.id === editingProject.id ? updated : p));
         toast.success('Project updated!');
       } else {
-        const newProject = await createProject(projectData);
+        const newProject = await createProject(projectPayload);
         setProjects([newProject, ...projects]);
         toast.success('Project created!');
       }
@@ -144,7 +145,7 @@ const StudentDashboard = () => {
     }
   };
 
-  const handleEditProject = (project: DbProject) => {
+  const handleEditProject = (project: Project) => {
     setEditingProject(project);
     setFormData({
       title: project.title || '',
@@ -181,7 +182,7 @@ const StudentDashboard = () => {
     if (!user) return;
     
     try {
-      await updateContactRequestStatus(requestId, status, user.id);
+      await updateContactRequestStatus(requestId, user.id, status);
       setContactRequests(contactRequests.map(r => 
         r.id === requestId ? { ...r, status } : r
       ));
