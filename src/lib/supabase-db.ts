@@ -3,6 +3,14 @@
 
 import { supabase } from "@/integrations/supabase/client";
 
+// Helper to ensure Supabase is available
+const requireSupabase = () => {
+  if (!supabase) {
+    throw new Error('Database not configured. Please add VITE_SUPABASE_URL and VITE_SUPABASE_PUBLISHABLE_KEY to your environment.');
+  }
+  return supabase;
+};
+
 // ========== Types ==========
 export interface Project {
   id: string;
@@ -67,7 +75,7 @@ export async function createProject(data: {
   // or create a placeholder. The clerk_user_id is the actual identifier.
   const placeholderOwnerId = '00000000-0000-0000-0000-000000000000';
   
-  const { data: project, error } = await supabase
+  const { data: project, error } = await requireSupabase()
     .from('projects')
     .insert({
       owner_id: placeholderOwnerId,
@@ -99,7 +107,7 @@ export async function createProject(data: {
 }
 
 export async function getProjectsByClerkUser(clerkUserId: string): Promise<Project[]> {
-  const { data, error } = await supabase
+  const { data, error } = await requireSupabase()
     .from('projects')
     .select('*')
     .eq('clerk_user_id', clerkUserId)
@@ -114,7 +122,7 @@ export async function getProjectsByClerkUser(clerkUserId: string): Promise<Proje
 }
 
 export async function getAllPublishedProjects(): Promise<Project[]> {
-  const { data, error } = await supabase
+  const { data, error } = await requireSupabase()
     .from('projects')
     .select('*')
     .eq('status', 'published')
@@ -129,7 +137,7 @@ export async function getAllPublishedProjects(): Promise<Project[]> {
 }
 
 export async function getProjectById(projectId: string): Promise<Project | null> {
-  const { data, error } = await supabase
+  const { data, error } = await requireSupabase()
     .from('projects')
     .select('*')
     .eq('id', projectId)
@@ -149,7 +157,7 @@ export async function updateProject(
   clerkUserId: string,
   updates: Partial<Omit<Project, 'id' | 'owner_id' | 'clerk_user_id' | 'created_at'>>
 ): Promise<Project> {
-  const { data, error } = await supabase
+  const { data, error } = await requireSupabase()
     .from('projects')
     .update({
       ...updates,
@@ -169,7 +177,7 @@ export async function updateProject(
 }
 
 export async function deleteProject(projectId: string, clerkUserId: string): Promise<boolean> {
-  const { error } = await supabase
+  const { error } = await requireSupabase()
     .from('projects')
     .delete()
     .eq('id', projectId)
@@ -186,7 +194,7 @@ export async function deleteProject(projectId: string, clerkUserId: string): Pro
 // ========== Contact Request Functions ==========
 
 export async function getContactRequestsForClerkUser(clerkUserId: string): Promise<ContactRequest[]> {
-  const { data, error } = await supabase
+  const { data, error } = await requireSupabase()
     .from('contact_requests')
     .select('*')
     .eq('to_clerk_id', clerkUserId)
@@ -208,7 +216,7 @@ export async function sendContactRequest(data: {
 }): Promise<ContactRequest> {
   const placeholderUserId = '00000000-0000-0000-0000-000000000000';
   
-  const { data: request, error } = await supabase
+  const { data: request, error } = await requireSupabase()
     .from('contact_requests')
     .insert({
       from_user_id: placeholderUserId,
@@ -235,7 +243,7 @@ export async function updateContactRequestStatus(
   clerkUserId: string,
   status: 'accepted' | 'declined'
 ): Promise<ContactRequest> {
-  const { data, error } = await supabase
+  const { data, error } = await requireSupabase()
     .from('contact_requests')
     .update({ status })
     .eq('id', requestId)
@@ -252,7 +260,7 @@ export async function updateContactRequestStatus(
 }
 
 export async function getSentContactRequests(clerkUserId: string): Promise<ContactRequest[]> {
-  const { data, error } = await supabase
+  const { data, error } = await requireSupabase()
     .from('contact_requests')
     .select('*')
     .eq('from_clerk_id', clerkUserId)
