@@ -17,29 +17,35 @@ export type Database = {
       contact_requests: {
         Row: {
           created_at: string
+          from_clerk_id: string | null
           from_user_id: string
           id: string
           message: string
           project_id: string
           status: string | null
+          to_clerk_id: string | null
           to_user_id: string
         }
         Insert: {
           created_at?: string
+          from_clerk_id?: string | null
           from_user_id: string
           id?: string
           message: string
           project_id: string
           status?: string | null
+          to_clerk_id?: string | null
           to_user_id: string
         }
         Update: {
           created_at?: string
+          from_clerk_id?: string | null
           from_user_id?: string
           id?: string
           message?: string
           project_id?: string
           status?: string | null
+          to_clerk_id?: string | null
           to_user_id?: string
         }
         Relationships: [
@@ -94,6 +100,7 @@ export type Database = {
       projects: {
         Row: {
           category: string | null
+          clerk_user_id: string | null
           created_at: string
           demo_url: string | null
           description: string | null
@@ -115,6 +122,7 @@ export type Database = {
         }
         Insert: {
           category?: string | null
+          clerk_user_id?: string | null
           created_at?: string
           demo_url?: string | null
           description?: string | null
@@ -136,6 +144,7 @@ export type Database = {
         }
         Update: {
           category?: string | null
+          clerk_user_id?: string | null
           created_at?: string
           demo_url?: string | null
           description?: string | null
