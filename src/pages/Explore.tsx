@@ -7,6 +7,7 @@ import CategoryBadge from "@/components/startup/CategoryBadge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { getAllPublishedProjects, type Project } from "@/lib/supabase-db";
+import { supabase } from "@/integrations/supabase/client";
 
 const categoryConfig = [
   { slug: "ai-ml", name: "AI & ML", dbCategory: "AI & ML" },
@@ -27,6 +28,7 @@ const Explore = () => {
   const [projects, setProjects] = useState<Project[]>([]);
   const [loading, setLoading] = useState(true);
 
+  // Initial fetch
   useEffect(() => {
     let cancelled = false;
     (async () => {
@@ -43,6 +45,42 @@ const Explore = () => {
     })();
     return () => {
       cancelled = true;
+    };
+  }, []);
+
+  // Realtime subscription for instant updates
+  useEffect(() => {
+    if (!supabase) return;
+
+    const channel = supabase
+      .channel("projects-realtime")
+      .on(
+        "postgres_changes",
+        { event: "*", schema: "public", table: "projects" },
+        (payload) => {
+          console.log("Realtime update:", payload);
+          if (payload.eventType === "INSERT") {
+            const newProject = payload.new as Project;
+            if (newProject.status === "published") {
+              setProjects((prev) => [newProject, ...prev]);
+            }
+          } else if (payload.eventType === "UPDATE") {
+            const updated = payload.new as Project;
+            setProjects((prev) =>
+              prev
+                .map((p) => (p.id === updated.id ? updated : p))
+                .filter((p) => p.status === "published")
+            );
+          } else if (payload.eventType === "DELETE") {
+            const deleted = payload.old as { id: string };
+            setProjects((prev) => prev.filter((p) => p.id !== deleted.id));
+          }
+        }
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
     };
   }, []);
 
