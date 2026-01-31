@@ -94,9 +94,22 @@ const StudentDashboard = () => {
     
     setSubmitting(true);
     try {
+      const title = formData.title.trim();
+      if (!title) {
+        throw new Error('Project title is required');
+      }
+
+      const parsedFundingGoal = formData.funding_goal
+        ? Number.parseFloat(formData.funding_goal.replace(/,/g, '').trim())
+        : undefined;
+
+      if (formData.funding_goal && (Number.isNaN(parsedFundingGoal) || !Number.isFinite(parsedFundingGoal))) {
+        throw new Error('Funding goal must be a valid number');
+      }
+
       const projectPayload = {
         clerkUserId: user.id,
-        title: formData.title,
+        title,
         tagline: formData.tagline || undefined,
         description: formData.description || undefined,
         problem: formData.problem || undefined,
@@ -105,7 +118,7 @@ const StudentDashboard = () => {
         category: formData.category || undefined,
         demo_url: formData.demo_url || undefined,
         github_url: formData.github_url || undefined,
-        funding_goal: formData.funding_goal ? parseFloat(formData.funding_goal) : undefined,
+        funding_goal: parsedFundingGoal,
         founder_name: user.fullName || user.firstName || 'Anonymous',
         founder_avatar: user.imageUrl,
         status: 'published',
@@ -126,7 +139,7 @@ const StudentDashboard = () => {
       resetForm();
     } catch (error) {
       console.error('Error saving project:', error);
-      toast.error('Failed to save project');
+      toast.error(error instanceof Error ? error.message : 'Failed to save project');
     } finally {
       setSubmitting(false);
     }

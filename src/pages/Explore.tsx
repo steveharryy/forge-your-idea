@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { Search } from "lucide-react";
 import Layout from "@/components/layout/Layout";
 import StartupCard from "@/components/startup/StartupCard";
@@ -6,7 +6,7 @@ import StartupCardSkeleton from "@/components/startup/StartupCardSkeleton";
 import CategoryBadge from "@/components/startup/CategoryBadge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { startups, categories } from "@/data/mockData";
+import { getAllPublishedProjects, type Project } from "@/lib/supabase-db";
 
 const categoryConfig = [
   { slug: "ai-ml", name: "AI & ML", dbCategory: "AI & ML" },
@@ -24,32 +24,57 @@ const Explore = () => {
   const [selectedCategory, setSelectedCategory] = useState<string | null>(null);
   const [sortBy, setSortBy] = useState<"newest" | "popular">("newest");
 
+  const [projects, setProjects] = useState<Project[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      setLoading(true);
+      try {
+        const data = await getAllPublishedProjects();
+        if (!cancelled) setProjects(data);
+      } catch (e) {
+        console.error("Failed to load projects:", e);
+        if (!cancelled) setProjects([]);
+      } finally {
+        if (!cancelled) setLoading(false);
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
   // Get category counts
   const getCategoryCount = (dbCategory: string) => {
-    return startups.filter(p => p.category === dbCategory).length;
+    return projects.filter((p) => p.category === dbCategory).length;
   };
 
   // Filter and sort projects
-  const filteredProjects = startups
-    .filter((project) => {
-      const matchesSearch =
-        project.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        project.tagline.toLowerCase().includes(searchQuery.toLowerCase());
-      
-      const selectedDbCategory = categoryConfig.find(c => c.slug === selectedCategory)?.dbCategory;
-      const matchesCategory = !selectedCategory || project.category === selectedDbCategory;
-      
-      return matchesSearch && matchesCategory;
-    })
-    .sort((a, b) => {
-      if (sortBy === "newest") {
-        return new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime();
-      }
-      if (sortBy === "popular") {
-        return b.upvotes - a.upvotes;
-      }
-      return 0;
-    });
+  const filteredProjects = useMemo(() => {
+    const q = searchQuery.trim().toLowerCase();
+    const selectedDbCategory = categoryConfig.find((c) => c.slug === selectedCategory)?.dbCategory;
+
+    return projects
+      .filter((project) => {
+        const matchesSearch =
+          !q ||
+          project.title.toLowerCase().includes(q) ||
+          (project.tagline || "").toLowerCase().includes(q) ||
+          (project.tech_stack || []).some((t) => t.toLowerCase().includes(q));
+
+        const matchesCategory = !selectedDbCategory || project.category === selectedDbCategory;
+        return matchesSearch && matchesCategory;
+      })
+      .sort((a, b) => {
+        if (sortBy === "newest") {
+          return new Date(b.created_at).getTime() - new Date(a.created_at).getTime();
+        }
+        // No upvotes in DB yet; keep stable order for "popular".
+        return 0;
+      });
+  }, [projects, searchQuery, selectedCategory, sortBy]);
 
   return (
     <Layout>
@@ -61,7 +86,7 @@ const Explore = () => {
               Explore Startups
             </h1>
             <p className="text-muted-foreground">
-              Discover {startups.length}+ innovative startups building the future
+              Discover {projects.length}+ innovative startups building the future
             </p>
           </div>
         </section>
@@ -116,7 +141,13 @@ const Explore = () => {
 
           {/* Results */}
           <div className="space-y-4">
-            {filteredProjects.length > 0 ? (
+            {loading ? (
+              <div className="space-y-4">
+                {Array.from({ length: 6 }).map((_, i) => (
+                  <StartupCardSkeleton key={i} />
+                ))}
+              </div>
+            ) : filteredProjects.length > 0 ? (
               filteredProjects.map((project, index) => (
                 <div
                   key={project.id}
@@ -125,16 +156,19 @@ const Explore = () => {
                 >
                   <StartupCard
                     id={project.id}
-                    name={project.name}
-                    tagline={project.tagline}
-                    logo={project.logo}
-                    category={project.category}
-                    upvotes={project.upvotes}
-                    isFeatured={project.isFeatured}
-                    founder={{
-                      name: project.founder.name,
-                      avatar: project.founder.avatar,
-                    }}
+                    name={project.title}
+                    tagline={project.tagline || ""}
+                    logo={project.logo_url || "/placeholder.svg"}
+                    category={project.category || "Uncategorized"}
+                    upvotes={0}
+                    founder={
+                      project.founder_name
+                        ? {
+                            name: project.founder_name,
+                            avatar: project.founder_avatar || "/placeholder.svg",
+                          }
+                        : undefined
+                    }
                   />
                 </div>
               ))
