@@ -142,6 +142,51 @@ const InvestorDashboard = () => {
     }
   }, [user, userRole, loadData]);
 
+  // Realtime subscription for instant project updates
+  useEffect(() => {
+    let channel: ReturnType<Awaited<ReturnType<typeof getSupabase>>['channel']> | null = null;
+
+    (async () => {
+      const supabase = await getSupabase();
+      if (!supabase) return;
+
+      channel = supabase
+        .channel('investor-projects-realtime')
+        .on(
+          'postgres_changes',
+          { event: '*', schema: 'public', table: 'projects' },
+          (payload) => {
+            console.log('Investor dashboard realtime update:', payload);
+            if (payload.eventType === 'INSERT') {
+              const newProject = payload.new as DbProject;
+              if (newProject.status === 'published') {
+                setProjects((prev) => [newProject, ...prev]);
+              }
+            } else if (payload.eventType === 'UPDATE') {
+              const updated = payload.new as DbProject;
+              setProjects((prev) =>
+                prev
+                  .map((p) => (p.id === updated.id ? updated : p))
+                  .filter((p) => p.status === 'published')
+              );
+            } else if (payload.eventType === 'DELETE') {
+              const deleted = payload.old as { id: string };
+              setProjects((prev) => prev.filter((p) => p.id !== deleted.id));
+            }
+          }
+        )
+        .subscribe();
+    })();
+
+    return () => {
+      if (channel) {
+        getSupabase().then((supabase) => {
+          if (supabase && channel) supabase.removeChannel(channel);
+        });
+      }
+    };
+  }, []);
+
   // Redirect logic is handled centrally in <RequireRole /> (App routes).
   // Keep a minimal guard here to avoid rendering sensitive UI in edge cases.
   if (authLoading || !user || userRole !== 'investor') {
